@@ -45,4 +45,6 @@ app.*.map.json
 /android/app/release
 
 # Widget Preview related
-.widget_preview/
+.widget_preview/、
+
+pubspec.lock

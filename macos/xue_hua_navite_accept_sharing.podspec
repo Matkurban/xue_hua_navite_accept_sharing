@@ -4,14 +4,14 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'xue_hua_navite_accept_sharing'
-  s.version          = '0.0.1'
+  s.version          = '1.0.0'
   s.summary          = 'Cross-platform Flutter plugin to receive shared text, URLs, and arbitrary files.'
   s.description      = <<-DESC
 Cross-platform Flutter plugin to receive shared text, URLs, and arbitrary files across Android, iOS, macOS, Windows, Linux, and Web.
                        DESC
-  s.homepage         = 'http://example.com'
+  s.homepage         = 'https://github.com/Matkurban'
   s.license          = { :file => '../LICENSE' }
-  s.author           = { 'Your Company' => 'email@example.com' }
+  s.author           = { 'Matkurban' => '3496354336@qq.com' }
 
   s.source           = { :path => '.' }
   s.source_files = 'xue_hua_navite_accept_sharing/Sources/xue_hua_navite_accept_sharing/**/*'
