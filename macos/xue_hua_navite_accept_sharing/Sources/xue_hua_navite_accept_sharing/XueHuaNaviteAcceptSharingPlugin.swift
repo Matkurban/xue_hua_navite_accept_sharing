@@ -97,8 +97,10 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
 
   // MARK: - FlutterAppLifecycleDelegate
 
-  public func handleOpenURLs(_ urls: [URL]) -> Bool {
-    return handleOpen(urls)
+  /// Swift import of `-[FlutterAppLifecycleDelegate handleOpenURLs:]`.
+  @discardableResult
+  public func handleOpen(_ urls: [URL]) -> Bool {
+    return handleOpen(urls, isInitial: nil)
   }
 
   @objc private func onAppDidBecomeActive() {
@@ -150,8 +152,9 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
 
   /// Call this method from your macOS `AppDelegate.application(_:open:)` or
   /// `application(_:openFiles:)` to forward opened files and URLs to the plugin.
+  /// Pass `isInitial` when the caller knows whether this is a cold-start payload.
   @discardableResult
-  public func handleOpen(_ urls: [URL], isInitial: Bool? = nil) -> Bool {
+  public func handleOpen(_ urls: [URL], isInitial: Bool?) -> Bool {
     guard !urls.isEmpty else {
       return false
     }
