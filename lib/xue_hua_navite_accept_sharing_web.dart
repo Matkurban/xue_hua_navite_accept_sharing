@@ -163,11 +163,7 @@ class XueHuaNaviteAcceptSharingWeb extends XueHuaNaviteAcceptSharingPlatform {
       );
     }
 
-    final payload = SharedPayload(
-      items: items,
-      text: text,
-      subject: subject,
-    );
+    final payload = SharedPayload(items: items, text: text, subject: subject);
     return payload.isNotEmpty ? payload : null;
   }
 
@@ -176,7 +172,8 @@ class XueHuaNaviteAcceptSharingWeb extends XueHuaNaviteAcceptSharingPlatform {
     if (uri == null || uri.queryParameters.isEmpty) {
       return null;
     }
-    final title = uri.queryParameters['title'] ?? uri.queryParameters['subject'];
+    final title =
+        uri.queryParameters['title'] ?? uri.queryParameters['subject'];
     final text = uri.queryParameters['text'];
     final sharedUrl = uri.queryParameters['url'];
 
@@ -205,11 +202,7 @@ class XueHuaNaviteAcceptSharingWeb extends XueHuaNaviteAcceptSharingPlatform {
     if (items.isEmpty) {
       return null;
     }
-    return SharedPayload(
-      items: items,
-      text: text ?? sharedUrl,
-      subject: title,
-    );
+    return SharedPayload(items: items, text: text ?? sharedUrl, subject: title);
   }
 
   @override
@@ -219,9 +212,7 @@ class XueHuaNaviteAcceptSharingWeb extends XueHuaNaviteAcceptSharingPlatform {
       _initialPayload ??= _parseUrlQueryParams();
       try {
         web.window.navigator.serviceWorker.controller?.postMessage(
-          <String, String>{
-            'type': 'xue_hua_request_initial_sharing',
-          }.jsify(),
+          <String, String>{'type': 'xue_hua_request_initial_sharing'}.jsify(),
         );
       } catch (_) {
         // Ignore if service worker controller is not active.

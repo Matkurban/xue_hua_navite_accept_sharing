@@ -10,8 +10,7 @@ class XueHuaNaviteAcceptSharing {
   const XueHuaNaviteAcceptSharing();
 
   /// Convenient singleton instance.
-  static const XueHuaNaviteAcceptSharing instance =
-      XueHuaNaviteAcceptSharing();
+  static const XueHuaNaviteAcceptSharing instance = XueHuaNaviteAcceptSharing();
 
   /// Returns the [SharedPayload] that launched the application (cold start),
   /// or `null` if no shared content was present at launch.

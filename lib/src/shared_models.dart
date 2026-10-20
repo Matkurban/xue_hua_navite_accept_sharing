@@ -159,9 +159,7 @@ class SharedMediaItem {
     Map<String, dynamic>? extra;
     final rawExtra = map['extra'];
     if (rawExtra is Map) {
-      extra = rawExtra.map(
-        (key, value) => MapEntry(key.toString(), value),
-      );
+      extra = rawExtra.map((key, value) => MapEntry(key.toString(), value));
     }
 
     final type = rawType != null
@@ -227,8 +225,7 @@ class SharedPayload {
   final String? subject;
 
   /// Returns `true` if there are no shared items and no shared text.
-  bool get isEmpty =>
-      items.isEmpty && (text == null || text!.trim().isEmpty);
+  bool get isEmpty => items.isEmpty && (text == null || text!.trim().isEmpty);
 
   /// Returns `true` if at least one shared item or non-empty text is present.
   bool get isNotEmpty => !isEmpty;
@@ -273,7 +270,8 @@ class SharedPayload {
 
     return SharedPayload(
       items: parsedItems,
-      text: text ??
+      text:
+          text ??
           parsedItems
               .where((item) => !item.isFile)
               .map((item) => item.content)
