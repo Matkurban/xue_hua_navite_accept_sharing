@@ -12,7 +12,10 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
 
   private var eventSink: FlutterEventSink?
   internal var initialPayload: [String: Any?]?
+  private var pendingStreamPayloads: [[String: Any?]] = []
   private var hasLaunched = false
+  private var lastHandledKey: String?
+  private var lastHandledTimestamp: TimeInterval = 0
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     let instance = XueHuaNaviteAcceptSharingPlugin.shared
@@ -26,10 +29,9 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
     )
 
     registrar.addMethodCallDelegate(instance, channel: methodChannel)
+    registrar.addApplicationDelegate(instance)
     eventChannel.setStreamHandler(instance)
 
-    // Register as macOS NSServices provider and refresh dynamic services so Finder
-    // context menu and Services menu entries take effect immediately.
     NSApplication.shared.servicesProvider = instance
     NSUpdateDynamicServices()
 
@@ -76,12 +78,27 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
     eventSink events: @escaping FlutterEventSink
   ) -> FlutterError? {
     self.eventSink = events
+    if !pendingStreamPayloads.isEmpty {
+      let queued = pendingStreamPayloads
+      pendingStreamPayloads.removeAll()
+      DispatchQueue.main.async {
+        for item in queued {
+          events(item)
+        }
+      }
+    }
     return nil
   }
 
   public func onCancel(withArguments arguments: Any?) -> FlutterError? {
     self.eventSink = nil
     return nil
+  }
+
+  // MARK: - FlutterAppLifecycleDelegate
+
+  public func handleOpenURLs(_ urls: [URL]) -> Bool {
+    return handleOpen(urls)
   }
 
   @objc private func onAppDidBecomeActive() {
@@ -135,6 +152,17 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
   /// `application(_:openFiles:)` to forward opened files and URLs to the plugin.
   @discardableResult
   public func handleOpen(_ urls: [URL], isInitial: Bool? = nil) -> Bool {
+    guard !urls.isEmpty else {
+      return false
+    }
+    let dedupKey = urls.map { $0.absoluteString }.joined(separator: "|")
+    let now = Date().timeIntervalSince1970
+    if dedupKey == lastHandledKey && (now - lastHandledTimestamp) < 0.4 {
+      return true
+    }
+    lastHandledKey = dedupKey
+    lastHandledTimestamp = now
+
     let treatAsInitial = isInitial ?? !hasLaunched
     var items: [[String: Any?]] = []
 
@@ -241,11 +269,16 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
     if isInitial && !hasLaunched {
       initialPayload = payload
     } else {
-      if initialPayload == nil && !hasLaunched {
+      if initialPayload == nil {
         initialPayload = payload
       }
       DispatchQueue.main.async { [weak self] in
-        self?.eventSink?(payload)
+        guard let self = self else { return }
+        if let sink = self.eventSink {
+          sink(payload)
+        } else {
+          self.pendingStreamPayloads.append(payload)
+        }
       }
     }
   }

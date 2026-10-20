@@ -13,6 +13,18 @@ class AppDelegate: FlutterAppDelegate {
   }
 
   override func application(_ application: NSApplication, open urls: [URL]) {
+    super.application(application, open: urls)
     XueHuaNaviteAcceptSharingPlugin.shared.handleOpen(urls)
+  }
+
+  override func application(_ sender: NSApplication, openFiles filenames: [String]) {
+    let urls = filenames.map { URL(fileURLWithPath: $0) }
+    XueHuaNaviteAcceptSharingPlugin.shared.handleOpen(urls)
+    sender.reply(toOpenOrPrint: .success)
+  }
+
+  override func application(_ sender: NSApplication, openFile filename: String) -> Bool {
+    let url = URL(fileURLWithPath: filename)
+    return XueHuaNaviteAcceptSharingPlugin.shared.handleOpen([url])
   }
 }

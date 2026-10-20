@@ -400,7 +400,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "echo \"$PRODUCT_NAME.app\" > \"$PROJECT_DIR\"/Flutter/ephemeral/.app_filename && \"$FLUTTER_ROOT\"/packages/flutter_tools/bin/macos_assemble.sh embed\nAPP_PATH=\"$BUILT_PRODUCTS_DIR/$PRODUCT_NAME.app\"\nAPPEX_PATH=\"$APP_PATH/Contents/PlugIns/ShareExtension.appex\"\n/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f -R -trusted \"$APP_PATH\" || true\nif [ -d \"$APPEX_PATH\" ]; then\n  pluginkit -a \"$APPEX_PATH\" || true\n  pluginkit -e use -i com.kurban.xueHuaNaviteAcceptSharingExample.ShareExtension || true\nfi\n/System/Library/CoreServices/pbs -flush || true\n";
+			shellScript = "echo \"$PRODUCT_NAME.app\" > \"$PROJECT_DIR\"/Flutter/ephemeral/.app_filename && \"$FLUTTER_ROOT\"/packages/flutter_tools/bin/macos_assemble.sh embed\n";
 		};
 		33CC111E2044C6BF0003C045 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
