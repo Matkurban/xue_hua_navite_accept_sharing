@@ -1,19 +1,19 @@
 # xue_hua_navite_accept_sharing
 
-跨平台 Flutter 接收分享插件，支持在 **Android、iOS、macOS、Windows、Linux、Web (PWA)** 全平台接收来自系统或其他应用分享的 **纯文本、URL 链接以及任意类型的单文件/多文件**（图片、视频、音频、PDF、压缩包、Office 文档、二进制文件等），同时支持**冷启动（应用未启动时通过分享拉起）**与**热启动（应用已在后台/前台运行时实时接收）**。
+跨平台 Flutter 接收分享插件，支持在 **Android、iOS、macOS、Windows、Linux、Web (PWA)** 全平台接收来自系统或其他应用分享的 **纯文本、URL 链接以及任意类型的单文件/多文件**（图片、视频、音频、PDF、压缩包、Office 文档、APK、二进制文件等），同时支持**冷启动（应用未启动时通过分享拉起）**与**热启动（应用已在后台/前台运行时实时接收）**。
 
 ## 目录
 
 1. [功能特性](#一功能特性)
 2. [数据模型与核心 API](#二数据模型与核心-api)
 3. [Dart 完整代码示例](#三dart-完整代码示例)
-4. [各平台特殊配置与处理详解](#四各平台特殊配置与处理详解)
-   - [Android 配置与特殊处理](#1-android-配置与特殊处理)
-   - [iOS 配置与特殊处理（Open In 与 Share Extension）](#2-ios-配置与特殊处理open-in-与-share-extension)
-   - [macOS 配置与特殊处理](#3-macos-配置与特殊处理)
-   - [Windows 配置与特殊处理（命令行与单实例 WM_COPYDATA）](#4-windows-配置与特殊处理命令行与单实例-wm_copydata)
-   - [Linux 配置与特殊处理（.desktop 启动器配置）](#5-linux-配置与特殊处理desktop-启动器配置)
-   - [Web (PWA) 配置与特殊处理（Web Share Target API）](#6-web-pwa-配置与特殊处理web-share-target-api)
+4. [各平台系统“共享菜单”配置与集成详解](#四各平台系统共享菜单配置与集成详解)
+   - [1. macOS 共享菜单集成（Finder 右键“共享...”弹窗、服务菜单与 Dock 拖入）](#1-macos-共享菜单集成finder-右键共享弹窗服务菜单与-dock-拖入)
+   - [2. iOS 共享菜单集成（系统 Share Sheet 分享面板与 Open In）](#2-ios-共享菜单集成系统-share-sheet-分享面板与-open-in)
+   - [3. Android 共享菜单集成（系统分享面板 Intent Filter）](#3-android-共享菜单集成系统分享面板-intent-filter)
+   - [4. Windows 共享与打开方式集成（右键“发送到”、打开方式与单实例 WM_COPYDATA）](#4-windows-共享与打开方式集成右键发送到打开方式与单实例-wm_copydata)
+   - [5. Linux 打开方式与共享集成（.desktop 启动器配置）](#5-linux-打开方式与共享集成desktop-启动器配置)
+   - [6. Web (PWA) 系统共享菜单集成（Web Share Target API）](#6-web-pwa-系统共享菜单集成web-share-target-api)
 
 ## 一、功能特性
 
@@ -21,7 +21,7 @@
 |:--------------|:-------------------------------------:|:--------------------------------------------------:|:--------------------------------:|:---------------------------------------:|:-------------------------------------:|
 | **Android**   |         支持 (`ACTION_SEND`)          |  支持 (`ACTION_SEND` / `SEND_MULTIPLE` / `VIEW`)   |               支持               |          支持 (`onNewIntent`)           | 支持（清理 `cacheDir/shared_files`）  |
 | **iOS**       | 支持（Share Extension / URL Scheme）  |    支持（Open In / AirDrop / Share Extension）     |               支持               |                  支持                   | 支持（清理临时目录与 App Group 容器） |
-| **macOS**     | 支持（Share Extension / URL Scheme）  |   支持（打开方式 / Dock 拖入 / Share Extension）   |               支持               |                  支持                   | 支持（清理临时目录与 App Group 容器） |
+| **macOS**     | 支持（Share Extension / `NSServices` / URL Scheme） | 支持（Finder“共享...”菜单 / 打开方式 / Dock 拖入 / 服务菜单） | 支持 | 支持 | 支持（清理临时目录与 App Group 容器） |
 | **Windows**   | 支持（`--text` 参数 / `WM_COPYDATA`） | 支持（打开方式 / 发送到 / 命令行 / `WM_COPYDATA`） |               支持               |          支持（`WM_COPYDATA`）          |                 支持                  |
 | **Linux**     |         支持（`--text` 参数）         |      支持（`.desktop` 打开方式 `%F` / `%U`）       |               支持               |                  支持                   |                 支持                  |
 | **Web (PWA)** |    支持（`share_target` GET/POST）    |    支持（`share_target` POST + Service Worker）    |               支持               | 支持（`BroadcastChannel` / SW Message） |    支持（释放 `Blob Object URL`）     |
@@ -35,7 +35,7 @@
 - `SharedItemType.image`：图片文件（`image/*`）
 - `SharedItemType.video`：视频文件（`video/*`）
 - `SharedItemType.audio`：音频文件（`audio/*`）
-- `SharedItemType.file`：其他任意类型文件（如 `application/pdf`、`application/zip`、`application/octet-stream` 等）
+- `SharedItemType.file`：其他任意类型文件（如 `application/pdf`、`application/zip`、`application/vnd.android.package-archive`、`application/octet-stream` 等）
 
 ### 2. `SharedMediaItem`（单项分享数据）
 
@@ -123,7 +123,6 @@ class _SharingReceiverPageState extends State<SharingReceiverPage> {
             '收到文件: ${item.fileName}, MIME: ${item.mimeType}, '
             '大小: ${item.fileSize} bytes, 路径: ${item.content}',
           );
-          // 原生平台可直接使用 File(item.content) 读取或上传
           final file = File(item.content);
           if (file.existsSync()) {
             debugPrint('本地文件可读，长度: ${file.lengthSync()}');
@@ -133,7 +132,6 @@ class _SharingReceiverPageState extends State<SharingReceiverPage> {
     }
   }
 
-  /// 处理完分享文件（如已上传或转存到业务目录）后清理临时缓存副本
   Future<void> _cleanupCache() async {
     await _sharing.cleanupTempFiles();
   }
@@ -173,70 +171,384 @@ class _SharingReceiverPageState extends State<SharingReceiverPage> {
 }
 ```
 
-## 四、各平台特殊配置与处理详解
+## 四、各平台系统“共享菜单”配置与集成详解
 
-### 1. Android 配置与特殊处理
+### 1. macOS 共享菜单集成（Finder 右键“共享...”弹窗、服务菜单与 Dock 拖入）
 
-#### 特殊处理机制说明
-- **Scoped Storage 临时 URI 权限问题**：Android 10+ 中外部应用通过 `Intent.ACTION_SEND` 传递的 `content://` URI 仅具有临时读取权限，一旦 Activity 生命周期变化或异步延迟读取便会抛出 `SecurityException`。本插件在原生层通过 `ContentResolver` 自动读取文件名（`OpenableColumns.DISPLAY_NAME`）、大小（`OpenableColumns.SIZE`）与 MIME 类型，并在后台 IO 线程将文件流流式拷贝到应用私有缓存目录 `context.cacheDir/shared_files/`，向 Dart 层返回可直接通过 `File(item.content)` 访问的绝对路径。
-- **`launchMode` 要求**：宿主 Activity 建议设置为 `android:launchMode="singleTop"`（或 `singleTask`），以确保应用已运行时从其他应用发起分享会触发 `onNewIntent` 并通过 `onSharingReceived` 实时推送，而不是重新创建多个 Activity 实例。
+在 macOS 中，系统级文件分享共有三种入口，分别对应不同的系统机制：
+1. **Finder 右键“共享...”弹窗列表（与“隔空投送、发送到微信、发送到QQ”同级）**：必须通过内嵌 **macOS Share Extension (`com.apple.share-services` `.appex`)** 实现。
+2. **Finder 右键“服务 (Services)”菜单**：通过主应用 `Info.plist` 中的 `NSServices` 实现（本插件已在原生层自动注册 `NSApplication.shared.servicesProvider` 处理 `handleSharingService`）。
+3. **拖拽文件到 Dock 应用图标 / 右键“打开方式”**：通过主应用 `Info.plist` 中的 `CFBundleDocumentTypes` + `AppDelegate.application(_:open:)` 实现。
 
-#### `android/app/src/main/AndroidManifest.xml` 配置示例
-在主 `MainActivity` 标签内添加以下 `<intent-filter>`：
+以下为同时集成上述三种入口的完整步骤：
+
+#### 第一步：配置主应用 `macos/Runner/Info.plist`
+在 `macos/Runner/Info.plist` 中声明支持打开所有类型文件（`CFBundleDocumentTypes`）、接收扩展唤醒的 URL Scheme（`acceptsharing`）以及 Finder 服务菜单（`NSServices`）：
 
 ```xml
-<activity
-    android:name=".MainActivity"
-    android:exported="true"
-    android:launchMode="singleTop"
-    ...>
+<!-- 1. 支持拖拽任意文件到 Dock 图标及右键“打开方式” -->
+<key>CFBundleDocumentTypes</key>
+<array>
+    <dict>
+        <key>CFBundleTypeName</key>
+        <string>All Files</string>
+        <key>CFBundleTypeRole</key>
+        <string>Viewer</string>
+        <key>LSHandlerRank</key>
+        <string>Alternate</string>
+        <key>LSItemContentTypes</key>
+        <array>
+            <string>public.item</string>
+            <string>public.content</string>
+            <string>public.data</string>
+        </array>
+    </dict>
+</array>
 
-    <!-- 原有 MAIN / LAUNCHER intent-filter -->
-    <intent-filter>
-        <action android:name="android.intent.action.MAIN"/>
-        <category android:name="android.intent.category.LAUNCHER"/>
-    </intent-filter>
+<!-- 2. 注册供 Share Extension 唤醒主应用的 URL Scheme -->
+<key>CFBundleURLTypes</key>
+<array>
+    <dict>
+        <key>CFBundleTypeRole</key>
+        <string>Editor</string>
+        <key>CFBundleURLSchemes</key>
+        <array>
+            <string>acceptsharing</string>
+        </array>
+    </dict>
+</array>
 
-    <!-- 1. 接收分享的纯文本与 URL 链接 -->
-    <intent-filter>
-        <action android:name="android.intent.action.SEND" />
-        <category android:name="android.intent.category.DEFAULT" />
-        <data android:mimeType="text/*" />
-    </intent-filter>
-
-    <!-- 2. 接收任意类型的单个文件（图片、视频、音频、文档、压缩包等） -->
-    <intent-filter>
-        <action android:name="android.intent.action.SEND" />
-        <category android:name="android.intent.category.DEFAULT" />
-        <data android:mimeType="*/*" />
-    </intent-filter>
-
-    <!-- 3. 接收任意类型的多个文件 -->
-    <intent-filter>
-        <action android:name="android.intent.action.SEND_MULTIPLE" />
-        <category android:name="android.intent.category.DEFAULT" />
-        <data android:mimeType="*/*" />
-    </intent-filter>
-
-    <!-- 4. 支持在系统文件管理器中选择“用本应用打开”任意文件 -->
-    <intent-filter>
-        <action android:name="android.intent.action.VIEW" />
-        <category android:name="android.intent.category.DEFAULT" />
-        <category android:name="android.intent.category.BROWSABLE" />
-        <data android:scheme="content" />
-        <data android:scheme="file" />
-        <data android:mimeType="*/*" />
-    </intent-filter>
-</activity>
+<!-- 3. 注册 Finder 右键“服务 (Services)”菜单项 -->
+<key>NSServices</key>
+<array>
+    <dict>
+        <key>NSMenuItem</key>
+        <dict>
+            <key>default</key>
+            <string>发送到你的应用名称</string>
+        </dict>
+        <key>NSMessage</key>
+        <string>handleSharingService</string>
+        <key>NSPortName</key>
+        <string>$(PRODUCT_NAME)</string>
+        <key>NSSendFileTypes</key>
+        <array>
+            <string>public.item</string>
+            <string>public.content</string>
+            <string>public.data</string>
+        </array>
+        <key>NSSendTypes</key>
+        <array>
+            <string>NSFilenamesPboardType</string>
+            <string>public.file-url</string>
+            <string>public.utf8-plain-text</string>
+        </array>
+    </dict>
+</array>
 ```
 
-### 2. iOS 配置与特殊处理（Open In 与 Share Extension）
+#### 第二步：在 `macos/Runner/AppDelegate.swift` 中转发 URL
+```swift
+import Cocoa
+import FlutterMacOS
+import xue_hua_navite_accept_sharing
 
-iOS 接收外部数据分为两种场景，可根据业务需求配置其中一种或同时配置两种：
+@main
+class AppDelegate: FlutterAppDelegate {
+  override func application(_ application: NSApplication, open urls: [URL]) {
+    XueHuaNaviteAcceptSharingPlugin.shared.handleOpen(urls)
+  }
+}
+```
+
+#### 第三步：创建 macOS Share Extension Target（出现在 Finder“共享...”弹窗列表）
+要让应用像“发送到微信”、“发送到QQ”一样出现在 Finder 右键“共享...”弹窗中：
+
+1. **在 Xcode 中新建 Share Extension Target**：
+   - 使用 Xcode 打开 `macos/Runner.xcworkspace`。
+   - 点击菜单 `File -> New -> Target...`，选择 **macOS -> Share Extension**，命名为 `ShareExtension`。
+   - 确保在主应用 `Runner` Target 的 `Build Phases -> Embed App Extensions`（或 `Copy Files` -> Destination `PlugIns`）中包含 `ShareExtension.appex`。
+2. **配置 `macos/ShareExtension/Info.plist`**：
+   - 设置 `CFBundleDisplayName` 为你在“共享”菜单中希望展示的名称（如 `发送到你的应用`）。
+   - 在 `NSExtensionActivationRule` 中同时开启文件、图片、视频、网页链接与文本支持（这样无论是右键 `.apk`、压缩包、图片还是视频都能显示）：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>发送到你的应用名称</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>NSExtension</key>
+	<dict>
+		<key>NSExtensionAttributes</key>
+		<dict>
+			<key>NSExtensionActivationRule</key>
+			<dict>
+				<key>NSExtensionActivationSupportsFileWithMaxCount</key>
+				<integer>100</integer>
+				<key>NSExtensionActivationSupportsImageWithMaxCount</key>
+				<integer>100</integer>
+				<key>NSExtensionActivationSupportsMovieWithMaxCount</key>
+				<integer>100</integer>
+				<key>NSExtensionActivationSupportsText</key>
+				<true/>
+				<key>NSExtensionActivationSupportsWebURLWithMaxCount</key>
+				<integer>100</integer>
+			</dict>
+		</dict>
+		<key>NSExtensionPointIdentifier</key>
+		<string>com.apple.share-services</string>
+		<key>NSExtensionPrincipalClass</key>
+		<string>$(PRODUCT_MODULE_NAME).ShareViewController</string>
+	</dict>
+</dict>
+</plist>
+```
+
+3. **配置沙盒权限（Entitlements）**：
+   - 若使用 Apple 开发者账号签名，可在 `Runner` 和 `ShareExtension` 的 `Signing & Capabilities` 中开启同一个 **App Groups**（例如 `group.<主应用 Bundle ID>`）。
+   - 同时为支持本地无证书调试（Ad-hoc 签名），在 `macos/ShareExtension/ShareExtension.entitlements` 与 `macos/Runner/DebugProfile.entitlements`、`Release.entitlements` 中添加文件读取与共享临时目录权限：
+
+```xml
+<key>com.apple.security.app-sandbox</key>
+<true/>
+<key>com.apple.security.files.user-selected.read-only</key>
+<true/>
+<key>com.apple.security.temporary-exception.files.absolute-path.read-write</key>
+<array>
+	<string>/tmp/</string>
+	<string>/private/tmp/</string>
+</array>
+```
+
+4. **编写 `macos/ShareExtension/ShareViewController.swift`（无额外弹窗直达主应用）**：
+   以下实现与“发送到微信”一致——用户在 Finder“共享...”菜单点击你的应用后，无需弹出多余的文本编辑框，直接提取所有文件/图片/视频并拉起 Flutter 主应用完成接收：
+
+```swift
+import Cocoa
+import UniformTypeIdentifiers
+
+@objc(ShareViewController)
+class ShareViewController: NSViewController {
+  // 替换为 group.<你的主应用 Bundle ID>
+  private let appGroupId = "group.com.yourcompany.yourapp"
+  private let hostAppScheme = "acceptsharing://share"
+  private let payloadKey = "xue_hua_shared_payload"
+
+  override func loadView() {
+    self.view = NSView(frame: NSRect(x: 0, y: 0, width: 1, height: 1))
+  }
+
+  override func viewDidLoad() {
+    super.viewDidLoad()
+    handleSharedItems()
+  }
+
+  private func handleSharedItems() {
+    guard let extensionItems = extensionContext?.inputItems as? [NSExtensionItem],
+          !extensionItems.isEmpty else {
+      completeRequest()
+      return
+    }
+
+    let group = DispatchGroup()
+    let lock = NSLock()
+    var sharedItems: [[String: Any]] = []
+    var sharedText: String?
+
+    for item in extensionItems {
+      if let text = item.attributedContentText?.string, !text.isEmpty {
+        sharedText = text
+      }
+      guard let attachments = item.attachments else { continue }
+
+      for provider in attachments {
+        if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+          group.enter()
+          provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { data, _ in
+            defer { group.leave() }
+            if let url = Self.extractURL(from: data),
+               let copied = self.stageSharedFile(url: url) {
+              lock.lock()
+              sharedItems.append(copied)
+              lock.unlock()
+            }
+          }
+        } else if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
+          group.enter()
+          provider.loadItem(forTypeIdentifier: UTType.url.identifier, options: nil) { data, _ in
+            defer { group.leave() }
+            if let url = Self.extractURL(from: data) {
+              if url.isFileURL, let copied = self.stageSharedFile(url: url) {
+                lock.lock()
+                sharedItems.append(copied)
+                lock.unlock()
+              } else {
+                lock.lock()
+                sharedItems.append([
+                  "type": "url",
+                  "content": url.absoluteString,
+                  "mimeType": "text/uri-list",
+                ])
+                lock.unlock()
+              }
+            }
+          }
+        } else if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
+          group.enter()
+          provider.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { data, _ in
+            defer { group.leave() }
+            if let text = data as? String, !text.isEmpty {
+              lock.lock()
+              if sharedText == nil { sharedText = text }
+              sharedItems.append([
+                "type": "text",
+                "content": text,
+                "mimeType": "text/plain",
+              ])
+              lock.unlock()
+            }
+          }
+        } else if let typeId = provider.registeredTypeIdentifiers.first {
+          group.enter()
+          provider.loadFileRepresentation(forTypeIdentifier: typeId) { url, _ in
+            defer { group.leave() }
+            if let url = url, let copied = self.stageSharedFile(url: url) {
+              lock.lock()
+              sharedItems.append(copied)
+              lock.unlock()
+            }
+          }
+        }
+      }
+    }
+
+    group.notify(queue: .main) {
+      var payload: [String: Any] = ["items": sharedItems]
+      if let text = sharedText {
+        payload["text"] = text
+      }
+
+      // 1. 写入 App Group UserDefaults（正式签名环境）
+      if let defaults = UserDefaults(suiteName: self.appGroupId) {
+        defaults.set(payload, forKey: self.payloadKey)
+        defaults.synchronize()
+      }
+
+      // 2. 同时写入临时清单并通过 URL Query 传递 Base64 载荷（兼容本地无证书 Ad-hoc 调试）
+      let fallbackDir = URL(fileURLWithPath: "/tmp/xue_hua_accept_sharing", isDirectory: true)
+      try? FileManager.default.createDirectory(at: fallbackDir, withIntermediateDirectories: true)
+      if let jsonData = try? JSONSerialization.data(withJSONObject: payload) {
+        let manifestURL = fallbackDir.appendingPathComponent("payload.json")
+        try? jsonData.write(to: manifestURL)
+        let base64 = jsonData.base64EncodedString()
+        var comps = URLComponents(string: self.hostAppScheme)
+        comps?.queryItems = [URLQueryItem(name: "payload", value: base64)]
+        if let targetURL = comps?.url {
+          NSWorkspace.shared.open(targetURL)
+          self.completeRequest()
+          return
+        }
+      }
+
+      if let fallbackURL = URL(string: self.hostAppScheme) {
+        NSWorkspace.shared.open(fallbackURL)
+      }
+      self.completeRequest()
+    }
+  }
+
+  private static func extractURL(from data: NSSecureCoding?) -> URL? {
+    if let url = data as? URL { return url }
+    if let nsUrl = data as? NSURL { return nsUrl as URL }
+    if let urlData = data as? Data {
+      return URL(dataRepresentation: urlData, relativeTo: nil)
+    }
+    if let str = data as? String {
+      return URL(string: str) ?? URL(fileURLWithPath: str)
+    }
+    return nil
+  }
+
+  private func stageSharedFile(url: URL) -> [String: Any]? {
+    let hasScope = url.startAccessingSecurityScopedResource()
+    defer {
+      if hasScope { url.stopAccessingSecurityScopedResource() }
+    }
+
+    let baseDir: URL
+    if let groupContainer = FileManager.default.containerURL(
+      forSecurityApplicationGroupIdentifier: appGroupId
+    ) {
+      baseDir = groupContainer.appendingPathComponent("shared_files", isDirectory: true)
+    } else {
+      baseDir = URL(fileURLWithPath: "/tmp/xue_hua_accept_sharing/shared_files", isDirectory: true)
+    }
+
+    try? FileManager.default.createDirectory(at: baseDir, withIntermediateDirectories: true)
+    let fileName = url.lastPathComponent.isEmpty ? "shared_file" : url.lastPathComponent
+    let destURL = baseDir.appendingPathComponent("\(Int(Date().timeIntervalSince1970 * 1000))_\(fileName)")
+    try? FileManager.default.removeItem(at: destURL)
+
+    let targetURL: URL
+    if (try? FileManager.default.copyItem(at: url, to: destURL)) != nil {
+      targetURL = destURL
+    } else {
+      targetURL = url
+    }
+
+    let size = (try? FileManager.default.attributesOfItem(atPath: targetURL.path)[.size] as? Int64) ?? 0
+    let ext = targetURL.pathExtension
+    let mime = UTType(filenameExtension: ext)?.preferredMIMEType ?? "application/octet-stream"
+    let type: String
+    if mime.hasPrefix("image/") { type = "image" }
+    else if mime.hasPrefix("video/") { type = "video" }
+    else if mime.hasPrefix("audio/") { type = "audio" }
+    else { type = "file" }
+
+    return [
+      "type": type,
+      "content": targetURL.path,
+      "fileName": fileName,
+      "mimeType": mime,
+      "fileSize": size,
+    ]
+  }
+
+  private func completeRequest() {
+    extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
+  }
+}
+```
+
+5. **首次编译后在 macOS“共享”菜单启用扩展**：
+   - 运行 `flutter run -d macos` 启动一次应用后，macOS `pluginkit` 会自动注册内嵌的 `ShareExtension.appex`。
+   - 若在 Finder 右键文件点击“共享...”未立即看到应用，点击分享弹窗底部的 **“编辑扩展... (Edit Extensions...)”**，勾选你的应用扩展即可固定显示在分享列表中。
+
+### 2. iOS 共享菜单集成（系统 Share Sheet 分享面板与 Open In）
 
 #### 场景 A：支持“用其他应用打开 (Open In)”与 AirDrop 直接接收文件
 
-1. **在 `ios/Runner/Info.plist` 中声明支持任意文档类型**：
+1. **在 `ios/Runner/Info.plist` 中声明支持任意文档类型与 `acceptsharing` URL Scheme**：
 
 ```xml
 <key>LSSupportsOpeningDocumentsInPlace</key>
@@ -256,10 +568,20 @@ iOS 接收外部数据分为两种场景，可根据业务需求配置其中一�
         </array>
     </dict>
 </array>
+<key>CFBundleURLTypes</key>
+<array>
+    <dict>
+        <key>CFBundleTypeRole</key>
+        <string>Editor</string>
+        <key>CFBundleURLSchemes</key>
+        <array>
+            <string>acceptsharing</string>
+        </array>
+    </dict>
+</array>
 ```
 
-2. **在 `ios/Runner/SceneDelegate.swift` 中转发 URL（适配 Flutter UISceneDelegate）**：
-   插件会自动调用 `startAccessingSecurityScopedResource()` 将外部安全作用域文件拷贝到应用沙盒临时目录：
+2. **在 `ios/Runner/SceneDelegate.swift` 中转发 URL**：
 
 ```swift
 import Flutter
@@ -292,255 +614,68 @@ class SceneDelegate: FlutterSceneDelegate {
 }
 ```
 
-#### 场景 B：出现在系统全局分享面板（Share Sheet）接收文本、链接、相册图片/视频及任意文件
+#### 场景 B：出现在 iOS 系统全局分享面板（Share Sheet）
 
-由于 iOS 沙盒机制限制，主应用必须通过 **Share Extension（分享扩展）+ App Group** 才能出现在 Safari、相册、备忘录及第三方 App 的系统分享菜单中：
+1. **创建 Share Extension Target**：在 Xcode 中打开 `ios/Runner.xcworkspace`，选择 `File -> New -> Target... -> Share Extension`，命名为 `ShareExtension`。
+2. **配置 App Groups**：为 `Runner` 和 `ShareExtension` 同时开启同一个 App Group（如 `group.<主应用 Bundle ID>`）。
+3. **在 `ios/ShareExtension/Info.plist` 中配置 `NSExtensionActivationRule`**（同上开启 `NSExtensionActivationSupportsFileWithMaxCount`、`Image`、`Movie`、`WebURL`、`Text`）。
+4. **在 `ios/ShareExtension/ShareViewController.swift` 中提取附件写入 App Group 并通过 `acceptsharing://share` 唤醒主应用**。
 
-1. **创建 Share Extension Target**：
-   - 在 Xcode 中打开 `ios/Runner.xcworkspace`，选择 `File -> New -> Target... -> Share Extension`，命名为 `ShareExtension`。
-2. **配置 App Groups**：
-   - 在 Xcode 中选中主应用 `Runner` Target 和 `ShareExtension` Target，在 `Signing & Capabilities` 中均添加 **App Groups**，并勾选同一个 Group ID：默认规则为 `group.<主应用 Bundle ID>`（若使用自定义名称，可在 `Runner/Info.plist` 中设置 `<key>AppGroupId</key><string>group.your.custom.id</string>`）。
-3. **在主应用 `ios/Runner/Info.plist` 中注册唤醒 URL Scheme**：
+### 3. Android 共享菜单集成（系统分享面板 Intent Filter）
 
-```xml
-<key>CFBundleURLTypes</key>
-<array>
-    <dict>
-        <key>CFBundleTypeRole</key>
-        <string>Editor</string>
-        <key>CFBundleURLSchemes</key>
-        <array>
-            <!-- 固定前缀 acceptsharing 即可被插件自动识别并读取 App Group 数据 -->
-            <string>acceptsharing</string>
-        </array>
-    </dict>
-</array>
-```
-
-4. **在 `ShareExtension/Info.plist` 中声明支持分享任意文件与文本**：
+在 `android/app/src/main/AndroidManifest.xml` 的主 `MainActivity` 标签内添加以下 `<intent-filter>`（建议设置 `android:launchMode="singleTop"`）：
 
 ```xml
-<key>NSExtension</key>
-<dict>
-    <key>NSExtensionAttributes</key>
-    <dict>
-        <key>NSExtensionActivationRule</key>
-        <dict>
-            <key>NSExtensionActivationSupportsText</key>
-            <true/>
-            <key>NSExtensionActivationSupportsWebURLWithMaxCount</key>
-            <integer>10</integer>
-            <key>NSExtensionActivationSupportsImageWithMaxCount</key>
-            <integer>50</integer>
-            <key>NSExtensionActivationSupportsMovieWithMaxCount</key>
-            <integer>20</integer>
-            <key>NSExtensionActivationSupportsFileWithMaxCount</key>
-            <integer>50</integer>
-        </dict>
-    </dict>
-    <key>NSExtensionMainStoryboard</key>
-    <string>MainInterface</string>
-    <key>NSExtensionPointIdentifier</key>
-    <string>com.apple.share-services</string>
-</dict>
+<activity
+    android:name=".MainActivity"
+    android:exported="true"
+    android:launchMode="singleTop"
+    ...>
+
+    <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+    </intent-filter>
+
+    <!-- 1. 接收分享的纯文本与 URL 链接 -->
+    <intent-filter>
+        <action android:name="android.intent.action.SEND" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <data android:mimeType="text/*" />
+    </intent-filter>
+
+    <!-- 2. 接收任意类型的单个文件 -->
+    <intent-filter>
+        <action android:name="android.intent.action.SEND" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <data android:mimeType="*/*" />
+    </intent-filter>
+
+    <!-- 3. 接收任意类型的多个文件 -->
+    <intent-filter>
+        <action android:name="android.intent.action.SEND_MULTIPLE" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <data android:mimeType="*/*" />
+    </intent-filter>
+
+    <!-- 4. 支持在系统文件管理器中选择“用本应用打开”任意文件 -->
+    <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="content" />
+        <data android:scheme="file" />
+        <data android:mimeType="*/*" />
+    </intent-filter>
+</activity>
 ```
 
-5. **替换 `ShareExtension/ShareViewController.swift` 代码**：
-   以下代码将分享的文本、URL 与任意类型文件写入 App Group 容器并自动拉起主应用，插件在主应用激活或被 URL 唤醒时会自动读取并推送到 Dart 层：
+### 4. Windows 共享与打开方式集成（右键“发送到”、打开方式与单实例 WM_COPYDATA）
 
-```swift
-import UIKit
-import UniformTypeIdentifiers
-
-class ShareViewController: UIViewController {
-  // 请确保与 Runner 的 App Group ID 一致
-  private let appGroupId = "group.com.yourcompany.yourapp"
-  private let hostAppScheme = "acceptsharing://share"
-  private let payloadKey = "xue_hua_shared_payload"
-
-  override func viewDidAppear(_ animated: Bool) {
-    super.viewDidAppear(animated)
-    handleSharedItems()
-  }
-
-  private func handleSharedItems() {
-    guard let extensionItems = extensionContext?.inputItems as? [NSExtensionItem] else {
-      completeRequest()
-      return
-    }
-
-    let group = DispatchGroup()
-    var sharedItems: [[String: Any]] = []
-    var sharedText: String?
-
-    for item in extensionItems {
-      if let text = item.attributedContentText?.string, !text.isEmpty {
-        sharedText = text
-      }
-      guard let attachments = item.attachments else { continue }
-
-      for provider in attachments {
-        if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-          group.enter()
-          provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { data, _ in
-            defer { group.leave() }
-            if let url = data as? URL, let copied = self.copyToAppGroup(url: url) {
-              sharedItems.append(copied)
-            }
-          }
-        } else if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
-          group.enter()
-          provider.loadItem(forTypeIdentifier: UTType.url.identifier, options: nil) { data, _ in
-            defer { group.leave() }
-            if let url = data as? URL {
-              if url.isFileURL, let copied = self.copyToAppGroup(url: url) {
-                sharedItems.append(copied)
-              } else {
-                sharedItems.append([
-                  "type": "url",
-                  "content": url.absoluteString,
-                  "mimeType": "text/uri-list",
-                ])
-              }
-            }
-          }
-        } else if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
-          group.enter()
-          provider.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { data, _ in
-            defer { group.leave() }
-            if let text = data as? String {
-              sharedText = sharedText ?? text
-              sharedItems.append([
-                "type": "text",
-                "content": text,
-                "mimeType": "text/plain",
-              ])
-            }
-          }
-        } else if let typeId = provider.registeredTypeIdentifiers.first {
-          group.enter()
-          provider.loadFileRepresentation(forTypeIdentifier: typeId) { url, _ in
-            defer { group.leave() }
-            if let url = url, let copied = self.copyToAppGroup(url: url) {
-              sharedItems.append(copied)
-            }
-          }
-        }
-      }
-    }
-
-    group.notify(queue: .main) {
-      if let defaults = UserDefaults(suiteName: self.appGroupId) {
-        let payload: [String: Any] = [
-          "items": sharedItems,
-          "text": sharedText as Any,
-        ]
-        defaults.set(payload, forKey: self.payloadKey)
-        defaults.synchronize()
-      }
-      self.openHostApp()
-      self.completeRequest()
-    }
-  }
-
-  private func copyToAppGroup(url: URL) -> [String: Any]? {
-    guard let containerURL = FileManager.default.containerURL(
-      forSecurityApplicationGroupIdentifier: appGroupId
-    ) else { return nil }
-
-    let dir = containerURL.appendingPathComponent("shared_files", isDirectory: true)
-    try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-    let fileName = url.lastPathComponent.isEmpty ? "shared_file" : url.lastPathComponent
-    let destURL = dir.appendingPathComponent("\(Int(Date().timeIntervalSince1970 * 1000))_\(fileName)")
-    try? FileManager.default.copyItem(at: url, to: destURL)
-
-    let size = (try? FileManager.default.attributesOfItem(atPath: destURL.path)[.size] as? Int64) ?? 0
-    let ext = destURL.pathExtension
-    let mime = UTType(filenameExtension: ext)?.preferredMIMEType ?? "application/octet-stream"
-    let type: String
-    if mime.hasPrefix("image/") { type = "image" }
-    else if mime.hasPrefix("video/") { type = "video" }
-    else if mime.hasPrefix("audio/") { type = "audio" }
-    else { type = "file" }
-
-    return [
-      "type": type,
-      "content": destURL.path,
-      "fileName": fileName,
-      "mimeType": mime,
-      "fileSize": size,
-    ]
-  }
-
-  private func openHostApp() {
-    guard let url = URL(string: hostAppScheme) else { return }
-    var responder: UIResponder? = self
-    let selector = sel_registerName("openURL:")
-    while let r = responder {
-      if r.responds(to: selector) {
-        r.perform(selector, with: url)
-        break
-      }
-      responder = r.next
-    }
-  }
-
-  private func completeRequest() {
-    extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
-  }
-}
-```
-
-### 3. macOS 配置与特殊处理
-
-#### 特殊处理机制说明
-macOS 支持通过 Finder 右键“打开方式”、将任意文件拖拽到应用 Dock 图标打开，以及通过 macOS 系统 Share Extension（配合 App Group）接收分享。
-
-1. **在 `macos/Runner/Info.plist` 中声明支持打开所有类型文件**：
-
-```xml
-<key>CFBundleDocumentTypes</key>
-<array>
-    <dict>
-        <key>CFBundleTypeName</key>
-        <string>All Files</string>
-        <key>CFBundleTypeRole</key>
-        <string>Viewer</string>
-        <key>LSHandlerRank</key>
-        <string>Alternate</string>
-        <key>LSItemContentTypes</key>
-        <array>
-            <string>public.item</string>
-            <string>public.content</string>
-            <string>public.data</string>
-        </array>
-    </dict>
-</array>
-```
-
-2. **在 `macos/Runner/AppDelegate.swift` 中转发打开的文件/URL**：
-
-```swift
-import Cocoa
-import FlutterMacOS
-import xue_hua_navite_accept_sharing
-
-@main
-class AppDelegate: FlutterAppDelegate {
-  override func application(_ application: NSApplication, open urls: [URL]) {
-    XueHuaNaviteAcceptSharingPlugin.shared.handleOpen(urls)
-  }
-}
-```
-
-### 4. Windows 配置与特殊处理（命令行与单实例 WM_COPYDATA）
-
-#### 特殊处理机制说明
-- **冷启动接收**：当用户通过 Windows 资源管理器右键“打开方式”、“发送到 (`shell:sendto`)”或命令行参数（如 `your_app.exe "C:\path\to\file.pdf"` 或 `your_app.exe --text "分享文本"`）启动应用时，插件自动调用 `GetCommandLineW` / `CommandLineToArgvW` 解析所有文件路径、URL 与文本参数，无需修改宿主代码即可通过 `getInitialSharing()` 获取。
-- **运行中单实例实时接收 (`WM_COPYDATA`)**：Windows 默认每次右键“打开方式”会启动一个新的 `.exe` 进程。若希望应用已运行时不开启新窗口，而是将新分享的文件/文本实时推送给已运行实例的 `onSharingReceived` 流，可在 `windows/runner/main.cpp` 的 `wWinMain` 开头添加单实例检测与 `WM_COPYDATA` 转发（插件已在内部注册顶层窗口回调自动解析 `WM_COPYDATA`）：
+- **右键“发送到 (Send To)”与“打开方式”**：将应用快捷方式放入 Windows `shell:sendto` 目录（`%APPDATA%\Microsoft\Windows\SendTo`）或注册文件关联后，用户在资源管理器右键文件选择“发送到 -> 你的应用”时，插件会自动解析命令行参数并在 `getInitialSharing()` 返回。
+- **运行中单实例实时接收 (`WM_COPYDATA`)**：在 `windows/runner/main.cpp` 的 `wWinMain` 开头添加单实例检测与 `WM_COPYDATA` (`0x58485348`) 转发，即可在不开启新窗口的情况下实时触发 `onSharingReceived`：
 
 ```cpp
-// 在 windows/runner/main.cpp 的 wWinMain 开头添加单实例转发：
 HWND existing_window = ::FindWindowW(L"FLUTTER_RUNNER_WIN32_WINDOW", L"你的窗口标题");
 if (existing_window != nullptr) {
   std::vector<std::string> args = GetCommandLineArguments();
@@ -560,12 +695,9 @@ if (existing_window != nullptr) {
 }
 ```
 
-### 5. Linux 配置与特殊处理（`.desktop` 启动器配置）
+### 5. Linux 打开方式与共享集成（`.desktop` 启动器配置）
 
-#### 特殊处理机制说明
-Linux 桌面环境（GNOME、KDE 等）通过 `.desktop` 文件中的 `Exec` 占位符（`%F` 多文件路径或 `%U` 多 URI）向应用传递“打开方式/分享”的文件。插件会自动读取 `/proc/self/cmdline`，将 `file://` URI 转换为真实路径，并通过 GIO (`GFile` / `GFileInfo`) 检测准确的 MIME 类型和文件大小。
-
-#### `.desktop` 配置文件示例 (`~/.local/share/applications/your_app.desktop`)
+在 `~/.local/share/applications/your_app.desktop` 中配置 `Exec=/path/to/your_app %U` 与 `MimeType`，即可在 GNOME/KDE 文件管理器右键菜单中将文件分享/发送到应用：
 
 ```ini
 [Desktop Entry]
@@ -579,14 +711,9 @@ Categories=Utility;
 MimeType=text/plain;image/*;video/*;audio/*;application/pdf;application/octet-stream;x-scheme-handler/http;x-scheme-handler/https;
 ```
 
-### 6. Web (PWA) 配置与特殊处理（Web Share Target API）
+### 6. Web (PWA) 系统共享菜单集成（Web Share Target API）
 
-#### 特殊处理机制说明
-在支持 Web Share Target API 的浏览器（如 Android Chrome、桌面 Chrome/Edge PWA）中，将 Web 应用安装为 PWA 后即可出现在系统分享菜单中：
-1. **仅接收文本与链接（GET 模式）**：插件会自动解析页面 URL Query 参数中的 `title`、`text`、`url`。
-2. **接收任意文件与文本（POST `multipart/form-data` 模式）**：由 Service Worker 拦截 `/_share_target` 的 `POST` 请求，并通过 `BroadcastChannel('xue_hua_navite_accept_sharing')` 或 `Client.postMessage` 将 `File`/`Blob` 转发给插件，插件自动生成 `Blob Object URL` 并填充文件元数据。
-
-#### 1. `web/manifest.json` 配置示例
+在 `web/manifest.json` 中配置 `share_target`，并配合 Service Worker 拦截 `/_share_target` `POST` 请求通过 `BroadcastChannel('xue_hua_navite_accept_sharing')` 转发，即可在安装 PWA 后出现在系统分享菜单中：
 
 ```json
 {
@@ -611,59 +738,4 @@ MimeType=text/plain;image/*;video/*;audio/*;application/pdf;application/octet-st
     }
   }
 }
-```
-
-#### 2. Service Worker 拦截分享请求代码示例
-在自定义 Service Worker 中添加如下拦截逻辑即可与本插件无缝对接：
-
-```javascript
-let pendingSharePayload = null;
-
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-  if (event.request.method === 'POST' && url.pathname.endsWith('/_share_target')) {
-    event.respondWith((async () => {
-      const formData = await event.request.formData();
-      const title = formData.get('title') || '';
-      const text = formData.get('text') || '';
-      const sharedUrl = formData.get('url') || '';
-      const files = formData.getAll('files');
-
-      const items = [];
-      for (const file of files) {
-        if (file instanceof File) {
-          items.push({
-            blob: file,
-            fileName: file.name,
-            mimeType: file.type || 'application/octet-stream',
-            fileSize: file.size,
-          });
-        }
-      }
-      if (sharedUrl) {
-        items.push({ type: 'url', content: sharedUrl, mimeType: 'text/uri-list' });
-      }
-
-      pendingSharePayload = {
-        channel: 'xue_hua_navite_accept_sharing',
-        title,
-        text: text || sharedUrl,
-        items,
-      };
-
-      const bc = new BroadcastChannel('xue_hua_navite_accept_sharing');
-      bc.postMessage(pendingSharePayload);
-      bc.close();
-
-      return Response.redirect('/?share_target=1', 303);
-    })());
-  }
-});
-
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'xue_hua_request_initial_sharing' && pendingSharePayload) {
-    event.source.postMessage(pendingSharePayload);
-    pendingSharePayload = null;
-  }
-});
 ```
