@@ -776,7 +776,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.kurban.xueHuaNaviteAcceptSharingExample.ShareExtension;
-				PRODUCT_BUNDLE_PACKAGE_TYPE = XPC!;
+				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -798,7 +798,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.kurban.xueHuaNaviteAcceptSharingExample.ShareExtension;
-				PRODUCT_BUNDLE_PACKAGE_TYPE = XPC!;
+				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
@@ -819,7 +819,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.kurban.xueHuaNaviteAcceptSharingExample.ShareExtension;
-				PRODUCT_BUNDLE_PACKAGE_TYPE = XPC!;
+				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
