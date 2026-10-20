@@ -2,9 +2,6 @@
 
 #include "include/xue_hua_navite_accept_sharing/xue_hua_navite_accept_sharing_plugin.h"
 
-// This file exposes some plugin internals for unit testing. See
-// https://github.com/flutter/flutter/issues/88724 for current limitations
-// in the unit-testable API.
-
-// Handles the getPlatformVersion method call.
-FlMethodResponse *get_platform_version();
+// Parses an array of command-line arguments into a SharedPayload FlValue map
+// (or nullptr if no shared arguments are present).
+FlValue* parse_shared_arguments(const gchar* const* args, gint argc);

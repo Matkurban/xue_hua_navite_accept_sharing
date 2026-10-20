@@ -5,9 +5,9 @@
 Pod::Spec.new do |s|
   s.name             = 'xue_hua_navite_accept_sharing'
   s.version          = '0.0.1'
-  s.summary          = 'A new Flutter project.'
+  s.summary          = 'Cross-platform Flutter plugin to receive shared text, URLs, and arbitrary files.'
   s.description      = <<-DESC
-A new Flutter project.
+Cross-platform Flutter plugin to receive shared text, URLs, and arbitrary files across Android, iOS, macOS, Windows, Linux, and Web.
                        DESC
   s.homepage         = 'http://example.com'
   s.license          = { :file => '../LICENSE' }
@@ -16,15 +16,9 @@ A new Flutter project.
   s.source           = { :path => '.' }
   s.source_files = 'xue_hua_navite_accept_sharing/Sources/xue_hua_navite_accept_sharing/**/*'
 
-  # If your plugin requires a privacy manifest, for example if it collects user
-  # data, update the PrivacyInfo.xcprivacy file to describe your plugin's
-  # privacy impact, and then uncomment this line. For more information,
-  # see https://developer.apple.com/documentation/bundleresources/privacy_manifest_files
-  # s.resource_bundles = {'xue_hua_navite_accept_sharing_privacy' => ['xue_hua_navite_accept_sharing/Sources/xue_hua_navite_accept_sharing/PrivacyInfo.xcprivacy']}
-
   s.dependency 'FlutterMacOS'
 
-  s.platform = :osx, '10.11'
+  s.platform = :osx, '11.0'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
   s.swift_version = '5.0'
 end
