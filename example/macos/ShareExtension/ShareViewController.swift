@@ -1,11 +1,14 @@
 import Cocoa
 import UniformTypeIdentifiers
 
-@objc(ShareViewController)
 class ShareViewController: NSViewController {
   private let appGroupId = "group.com.kurban.xueHuaNaviteAcceptSharingExample"
   private let hostAppScheme = "acceptsharing://share"
   private let payloadKey = "xue_hua_shared_payload"
+
+  override var nibName: NSNib.Name? {
+    return nil
+  }
 
   override func loadView() {
     self.view = NSView(frame: NSRect(x: 0, y: 0, width: 1, height: 1))
@@ -101,14 +104,11 @@ class ShareViewController: NSViewController {
         payload["text"] = text
       }
 
-      // 1. Save to App Group UserDefaults (when signed with App Group entitlements).
       if let defaults = UserDefaults(suiteName: self.appGroupId) {
         defaults.set(payload, forKey: self.payloadKey)
         defaults.synchronize()
       }
 
-      // 2. Also write fallback manifest and pass base64 payload in URL query so
-      // local/ad-hoc builds work immediately without paid provisioning profiles.
       let fallbackDir = URL(fileURLWithPath: "/tmp/xue_hua_accept_sharing", isDirectory: true)
       try? FileManager.default.createDirectory(at: fallbackDir, withIntermediateDirectories: true)
       if let jsonData = try? JSONSerialization.data(withJSONObject: payload) {

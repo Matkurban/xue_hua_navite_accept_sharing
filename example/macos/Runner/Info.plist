@@ -58,11 +58,14 @@
 			<string>handleSharingService</string>
 			<key>NSPortName</key>
 			<string>$(PRODUCT_NAME)</string>
+			<key>NSRequiredContext</key>
+			<dict/>
 			<key>NSSendFileTypes</key>
 			<array>
 				<string>public.item</string>
 				<string>public.content</string>
 				<string>public.data</string>
+				<string>public.directory</string>
 			</array>
 			<key>NSSendTypes</key>
 			<array>

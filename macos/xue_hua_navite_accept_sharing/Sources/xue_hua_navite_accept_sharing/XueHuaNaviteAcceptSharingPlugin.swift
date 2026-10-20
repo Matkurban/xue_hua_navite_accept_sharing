@@ -28,8 +28,10 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
     registrar.addMethodCallDelegate(instance, channel: methodChannel)
     eventChannel.setStreamHandler(instance)
 
-    // Register as macOS NSServices provider so Finder -> Services menu works out of the box.
+    // Register as macOS NSServices provider and refresh dynamic services so Finder
+    // context menu and Services menu entries take effect immediately.
     NSApplication.shared.servicesProvider = instance
+    NSUpdateDynamicServices()
 
     NotificationCenter.default.addObserver(
       instance,
@@ -86,7 +88,7 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
     checkAppGroupPayload(isInitial: !hasLaunched)
   }
 
-  /// Handles macOS Finder "Services" (`NSServices`) pasteboard sharing.
+  /// Handles macOS Finder context menu / "Services" (`NSServices`) pasteboard sharing.
   @objc public func handleSharingService(
     _ pboard: NSPasteboard,
     userData: String?,
@@ -96,8 +98,18 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
     var sharedText: String?
 
     let options: [NSPasteboard.ReadingOptionKey: Any] = [.urlReadingFileURLsOnly: true]
-    if let fileUrls = pboard.readObjects(forClasses: [NSURL.self], options: options) as? [URL] {
+    if let fileUrls = pboard.readObjects(forClasses: [NSURL.self], options: options) as? [URL],
+       !fileUrls.isEmpty {
       for fileUrl in fileUrls {
+        if let item = resolveFileURL(fileUrl) {
+          items.append(item)
+        }
+      }
+    } else if let filenames = pboard.propertyList(
+      forType: NSPasteboard.PasteboardType("NSFilenamesPboardType")
+    ) as? [String] {
+      for path in filenames {
+        let fileUrl = URL(fileURLWithPath: path)
         if let item = resolveFileURL(fileUrl) {
           items.append(item)
         }
@@ -115,6 +127,7 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
       "text": sharedText,
       "subject": nil,
     ]
+    NSApplication.shared.activate(ignoringOtherApps: true)
     deliverPayload(payload, isInitial: !hasLaunched)
   }
 
@@ -201,7 +214,6 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
       return
     }
 
-    // Fallback shared file payload for local debug / ad-hoc signed builds.
     let sharedManifestURL = URL(fileURLWithPath: "/tmp/xue_hua_accept_sharing/payload.json")
     if FileManager.default.fileExists(atPath: sharedManifestURL.path),
        let data = try? Data(contentsOf: sharedManifestURL),
