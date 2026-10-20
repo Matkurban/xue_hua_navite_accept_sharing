@@ -28,6 +28,9 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
     registrar.addMethodCallDelegate(instance, channel: methodChannel)
     eventChannel.setStreamHandler(instance)
 
+    // Register as macOS NSServices provider so Finder -> Services menu works out of the box.
+    NSApplication.shared.servicesProvider = instance
+
     NotificationCenter.default.addObserver(
       instance,
       selector: #selector(instance.onAppDidBecomeActive),
@@ -83,6 +86,38 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
     checkAppGroupPayload(isInitial: !hasLaunched)
   }
 
+  /// Handles macOS Finder "Services" (`NSServices`) pasteboard sharing.
+  @objc public func handleSharingService(
+    _ pboard: NSPasteboard,
+    userData: String?,
+    error: AutoreleasingUnsafeMutablePointer<NSString?>
+  ) {
+    var items: [[String: Any?]] = []
+    var sharedText: String?
+
+    let options: [NSPasteboard.ReadingOptionKey: Any] = [.urlReadingFileURLsOnly: true]
+    if let fileUrls = pboard.readObjects(forClasses: [NSURL.self], options: options) as? [URL] {
+      for fileUrl in fileUrls {
+        if let item = resolveFileURL(fileUrl) {
+          items.append(item)
+        }
+      }
+    }
+
+    if items.isEmpty, let str = pboard.string(forType: .string), !str.isEmpty {
+      sharedText = str
+      items.append(buildTextItem(str))
+    }
+
+    guard !items.isEmpty else { return }
+    let payload: [String: Any?] = [
+      "items": items,
+      "text": sharedText,
+      "subject": nil,
+    ]
+    deliverPayload(payload, isInitial: !hasLaunched)
+  }
+
   /// Call this method from your macOS `AppDelegate.application(_:open:)` or
   /// `application(_:openFiles:)` to forward opened files and URLs to the plugin.
   @discardableResult
@@ -92,6 +127,11 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
 
     for url in urls {
       if let scheme = url.scheme?.lowercased(), scheme.hasPrefix("acceptsharing") {
+        if let queryPayload = Self.decodePayloadFromURL(url) {
+          deliverPayload(queryPayload, isInitial: treatAsInitial)
+          clearAppGroupPayload()
+          return true
+        }
         checkAppGroupPayload(isInitial: treatAsInitial)
         return true
       }
@@ -122,6 +162,21 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
     return true
   }
 
+  private static func decodePayloadFromURL(_ url: URL) -> [String: Any?]? {
+    guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+          let queryItems = components.queryItems,
+          let base64Str = queryItems.first(where: { $0.name == "payload" })?.value,
+          let data = Data(base64Encoded: base64Str),
+          let jsonObj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+      return nil
+    }
+    var result: [String: Any?] = [:]
+    for (k, v) in jsonObj {
+      result[k] = v
+    }
+    return result
+  }
+
   public func resolveAppGroupId() -> String {
     if let configured = Bundle.main.object(forInfoDictionaryKey: "AppGroupId") as? String,
        !configured.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -133,26 +188,41 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
 
   public func checkAppGroupPayload(isInitial: Bool) {
     let appGroupId = resolveAppGroupId()
-    guard let userDefaults = UserDefaults(suiteName: appGroupId),
-          let rawPayload = userDefaults.dictionary(forKey: Self.sharedPayloadKey) else {
+    if let userDefaults = UserDefaults(suiteName: appGroupId),
+       let rawPayload = userDefaults.dictionary(forKey: Self.sharedPayloadKey) {
+      userDefaults.removeObject(forKey: Self.sharedPayloadKey)
+      userDefaults.synchronize()
+
+      var payload: [String: Any?] = [:]
+      for (k, v) in rawPayload {
+        payload[k] = v
+      }
+      deliverPayload(payload, isInitial: isInitial)
       return
     }
 
-    userDefaults.removeObject(forKey: Self.sharedPayloadKey)
-    userDefaults.synchronize()
-
-    var payload: [String: Any?] = [:]
-    for (k, v) in rawPayload {
-      payload[k] = v
+    // Fallback shared file payload for local debug / ad-hoc signed builds.
+    let sharedManifestURL = URL(fileURLWithPath: "/tmp/xue_hua_accept_sharing/payload.json")
+    if FileManager.default.fileExists(atPath: sharedManifestURL.path),
+       let data = try? Data(contentsOf: sharedManifestURL),
+       let rawPayload = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+      try? FileManager.default.removeItem(at: sharedManifestURL)
+      var payload: [String: Any?] = [:]
+      for (k, v) in rawPayload {
+        payload[k] = v
+      }
+      deliverPayload(payload, isInitial: isInitial)
     }
-    deliverPayload(payload, isInitial: isInitial)
   }
 
   private func clearAppGroupPayload() {
     let appGroupId = resolveAppGroupId()
-    guard let userDefaults = UserDefaults(suiteName: appGroupId) else { return }
-    userDefaults.removeObject(forKey: Self.sharedPayloadKey)
-    userDefaults.synchronize()
+    if let userDefaults = UserDefaults(suiteName: appGroupId) {
+      userDefaults.removeObject(forKey: Self.sharedPayloadKey)
+      userDefaults.synchronize()
+    }
+    let sharedManifestURL = URL(fileURLWithPath: "/tmp/xue_hua_accept_sharing/payload.json")
+    try? FileManager.default.removeItem(at: sharedManifestURL)
   }
 
   internal func deliverPayload(_ payload: [String: Any?], isInitial: Bool) {
@@ -238,6 +308,10 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
     )
     if fileManager.fileExists(atPath: cacheDir.path) {
       try? fileManager.removeItem(at: cacheDir)
+    }
+    let fallbackSharedDir = URL(fileURLWithPath: "/tmp/xue_hua_accept_sharing", isDirectory: true)
+    if fileManager.fileExists(atPath: fallbackSharedDir.path) {
+      try? fileManager.removeItem(at: fallbackSharedDir)
     }
     let appGroupId = resolveAppGroupId()
     if let groupURL = fileManager.containerURL(forSecurityApplicationGroupIdentifier: appGroupId) {

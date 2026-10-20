@@ -1,14 +1,15 @@
 name: xue_hua_navite_accept_sharing
-description: "A cross-platform Flutter plugin for native drag-and-drop and file sharing across macOS, Windows, Linux, iOS, Android, and Web."
+description: "A cross-platform Flutter plugin for receiving shared text, URLs, images, videos, and arbitrary files across Android, iOS, macOS, Windows, Linux, and Web."
 version: 1.0.0
 homepage: https://github.com/Matkurban/xue_hua_navite_accept_sharing
 repository: https://github.com/Matkurban/xue_hua_navite_accept_sharing
 issue_tracker: https://github.com/Matkurban/xue_hua_navite_accept_sharing/issues
+documentation: https://github.com/Matkurban/xue_hua_navite_accept_sharing#readme
 topics:
-  - drag-and-drop
   - sharing
-  - file-transfer
-  - desktop
+  - share-extension
+  - share-target
+  - file-sharing
   - multiplatform
 
 environment:
@@ -29,16 +30,6 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
 flutter:
-  # This section identifies this Flutter project as a plugin project.
-  # The 'pluginClass' specifies the class (in Java, Kotlin, Swift, Objective-C, etc.)
-  # which should be registered in the plugin registry. This is required for
-  # using method channels.
-  # The Android 'package' specifies package in which the registered class is.
-  # This is required for using method channels on Android.
-  # The 'ffiPlugin' specifies that native code should be built and bundled.
-  # This is required for using `dart:ffi`.
-  # All these are used by the tooling to maintain consistency when
-  # adding or updating assets for this project.
   plugin:
     platforms:
       android:

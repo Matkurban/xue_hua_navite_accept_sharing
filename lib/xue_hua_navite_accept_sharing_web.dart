@@ -115,16 +115,18 @@ class XueHuaNaviteAcceptSharingWeb extends XueHuaNaviteAcceptSharingPlatform {
             bytes = Uint8List.fromList(rawBytes);
           }
 
-          if (rawBlob is web.Blob) {
-            final url = web.URL.createObjectURL(rawBlob);
+          final jsBlob = rawBlob?.jsify();
+          if (jsBlob != null && jsBlob.isA<web.Blob>()) {
+            final blob = jsBlob as web.Blob;
+            final url = web.URL.createObjectURL(blob);
             _createdObjectUrls.add(url);
             content = url;
-            fileSize ??= rawBlob.size;
+            fileSize ??= blob.size;
             if (mimeType == null || mimeType.isEmpty) {
-              mimeType = rawBlob.type;
+              mimeType = blob.type;
             }
-            if (rawBlob.isA<web.File>()) {
-              final webFile = rawBlob as web.File;
+            if (blob.isA<web.File>()) {
+              final webFile = blob as web.File;
               fileName ??= webFile.name;
             }
           }
