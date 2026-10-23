@@ -7,6 +7,10 @@ cmake_minimum_required(VERSION 3.10)
 set(PROJECT_NAME "xue_hua_navite_accept_sharing")
 project(${PROJECT_NAME} LANGUAGES CXX)
 
+# Explicitly opt in to modern CMake behaviors to avoid warnings with recent
+# versions of CMake.
+cmake_policy(VERSION 3.10...3.31)
+
 # This value is used when generating builds using this plugin, so it must
 # not be changed.
 set(PLUGIN_NAME "xue_hua_navite_accept_sharing_plugin")
@@ -62,10 +66,12 @@ set(TEST_RUNNER "${PROJECT_NAME}_test")
 enable_testing()
 
 # Add the Google Test dependency.
+# release-1.11.0 fails on CMake 4.x; pin v1.15.2 instead.
 include(FetchContent)
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 FetchContent_Declare(
   googletest
-  URL https://github.com/google/googletest/archive/release-1.11.0.zip
+  URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.zip
 )
 # Prevent overriding the parent project's compiler/linker settings
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
