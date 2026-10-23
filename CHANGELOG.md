@@ -1,3 +1,6 @@
+## 1.0.3
+
+* Linux: support CMake 4 builds (bump googletest, CMake policy range).
 ## 1.0.2
 
 * Windows: support CMake 4 / Visual Studio 2026 builds (bump googletest, CMake policy range, include `encodable_value.h`).
