@@ -1,3 +1,6 @@
+## 1.0.2
+
+* Windows: support CMake 4 / Visual Studio 2026 builds (bump googletest, CMake policy range, include `encodable_value.h`).
 ## 1.0.1
 
 * Publish the package guide in English as `README.md`, and keep the Simplified Chinese guide as `README.zh-CN.md`.
