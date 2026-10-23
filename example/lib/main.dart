@@ -118,7 +118,11 @@ class _MyAppState extends State<MyApp> {
                     ? const Center(
                         child: Text(
                           'Share any text, link, image, video, audio, or file '
-                          'from another app to this app to inspect it here.',
+                          'from another app to this app to inspect it here.\n\n'
+                          'Windows: right-click a file and use Send to → '
+                          'Xue Hua Accept Sharing Example, Open with, or '
+                          'Open with Xue Hua Accept Sharing Example. '
+                          'The Share panel only lists packaged Share Targets.',
                           textAlign: TextAlign.center,
                         ),
                       )

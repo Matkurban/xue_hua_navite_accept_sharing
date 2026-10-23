@@ -674,27 +674,45 @@ class SceneDelegate: FlutterSceneDelegate {
 
 ### 4. Windows 共享与打开方式集成（右键“发送到”、打开方式与单实例 WM_COPYDATA）
 
-- **右键“发送到 (Send To)”与“打开方式”**：将应用快捷方式放入 Windows `shell:sendto` 目录（`%APPDATA%\Microsoft\Windows\SendTo`）或注册文件关联后，用户在资源管理器右键文件选择“发送到 -> 你的应用”时，插件会自动解析命令行参数并在 `getInitialSharing()` 返回。
-- **运行中单实例实时接收 (`WM_COPYDATA`)**：在 `windows/runner/main.cpp` 的 `wWinMain` 开头添加单实例检测与 `WM_COPYDATA` (`0x58485348`) 转发，即可在不开启新窗口的情况下实时触发 `onSharingReceived`：
+资源管理器里的 **「共享」** 只列出已打包的 **Share Target**。`flutter run` 或普通 `.exe` 这种未打包进程不会出现在「共享」面板里，这是系统行为，不是注册漏了。日常把文件送进应用，用 **发送到**、**打开方式** 或右键命令即可。MSIX Share Target 是可选项，本插件不依赖它。
+
+example 在自己的 exe 第一次启动时就会注册下面这些入口，并始终指向当前这份 exe（`flutter run` 的 Debug exe，或安装后的 exe）：
+
+| 入口 | 出现位置 |
+| --- | --- |
+| **发送到 → Xue Hua Accept Sharing Example** | 资源管理器 **发送到**（`shell:sendto`） |
+| **Open with Xue Hua Accept Sharing Example** | 文件右键菜单。Windows 11 在 **显示更多选项** 里 |
+| **打开方式** | 常见类型（图片、文本、音频、视频、PDF、zip，以及 example 注册的其他扩展名） |
+
+注册只写当前用户（`HKCU` 和 `%APPDATA%\Microsoft\Windows\SendTo`），不会抢走双击文件时的默认程序。example 已在运行时，再次启动会把参数转给已有窗口然后退出，所以重新 `flutter run` 之前先退出 example。
+
+- **冷启动**：资源管理器带上文件路径启动 exe，`getInitialSharing()` 返回这些文件。
+- **已经在运行**：新进程发送 `WM_COPYDATA`（`dwData = 0x58485348`，UTF-8 参数以换行分隔）后退出，`onSharingReceived` 收到载荷。多选文件会进同一次载荷（`MultiSelectModel = Player`，这种静态动词最多 100 个文件）。
+
+```bash
+cd example
+flutter run -d windows
+```
+
+在资源管理器里右键文件，选择 **发送到 → Xue Hua Accept Sharing Example**。
+
+可选安装包。安装后的 exe 同样在首次启动时注册上述入口，不会因此出现在「共享」面板：
+
+```bash
+cd example
+fpack build exe
+```
+
+运行 [fpack](https://pub.dev/packages/fpack) 生成的 `dist/*-windows-x64-setup.exe`（配置见 `example/fpack.yaml`）。
+
+把自己的 runner 接上时，复制 `example/windows/runner/single_instance.*` 和 `example/windows/runner/explorer_registration.*`，在 `wWinMain` 创建窗口之前调用。转发按窗口标题查找 `FLUTTER_RUNNER_WIN32_WINDOW`。`dwData` 不是 `0x58485348` 的 `WM_COPYDATA` 会被插件忽略。
 
 ```cpp
-HWND existing_window = ::FindWindowW(L"FLUTTER_RUNNER_WIN32_WINDOW", L"你的窗口标题");
-if (existing_window != nullptr) {
-  std::vector<std::string> args = GetCommandLineArguments();
-  if (!args.empty()) {
-    std::string joined;
-    for (const auto& arg : args) {
-      joined += arg + "\n";
-    }
-    COPYDATASTRUCT cds{};
-    cds.dwData = 0x58485348; // 'XHSH'
-    cds.cbData = static_cast<DWORD>(joined.size());
-    cds.lpData = const_cast<char*>(joined.data());
-    ::SendMessageW(existing_window, WM_COPYDATA, 0, reinterpret_cast<LPARAM>(&cds));
-  }
-  ::SetForegroundWindow(existing_window);
+if (ForwardToExistingInstance(command_line_arguments)) {
+  ::CoUninitialize();
   return EXIT_SUCCESS;
 }
+RegisterExplorerIntegration();
 ```
 
 ### 5. Linux 打开方式与共享集成（`.desktop` 启动器配置）
