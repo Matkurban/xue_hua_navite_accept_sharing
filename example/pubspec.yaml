@@ -12,6 +12,7 @@ dependencies:
   xue_hua_navite_accept_sharing:
     path: ../
   cupertino_icons: ^1.0.8
+  material_ui: ^1.8.0
 
 dev_dependencies:
   integration_test:
