@@ -679,27 +679,45 @@ Add the following `<intent-filter>` blocks inside the main `MainActivity` in `an
 
 ### 4. Windows (Send to, Open with, and single-instance WM_COPYDATA)
 
-- **Send to and Open with**: place a shortcut in the Windows `shell:sendto` folder (`%APPDATA%\Microsoft\Windows\SendTo`), or register a file association. When the user chooses **Send to -> your app** in File Explorer, the plugin parses the command line and returns the payload from `getInitialSharing()`.
-- **Single-instance delivery while the app is running (`WM_COPYDATA`)**: at the start of `wWinMain` in `windows/runner/main.cpp`, detect an existing instance and forward `WM_COPYDATA` (`0x58485348`). That fires `onSharingReceived` without opening another window:
+File Explorer's **Share** command only lists packaged **Share Targets**. An unpackaged process (`flutter run`, or a plain `.exe`) does not appear there. That is expected. Send files with **Send to**, **Open with**, or the right-click command instead. An MSIX Share Target is optional and is not required for this plugin.
+
+The example registers those entries the first time its executable starts, and points them at that executable (the debug exe from `flutter run`, or an installed copy):
+
+| Entry | Where it appears |
+| --- | --- |
+| **Send to → Xue Hua Accept Sharing Example** | File Explorer **Send to** (`shell:sendto`) |
+| **Open with Xue Hua Accept Sharing Example** | File context menu. On Windows 11 it is under **Show more options** |
+| **Open with** | Common types (images, text, audio, video, PDF, zip, and the other extensions registered by the example) |
+
+Registration is per user (`HKCU` and `%APPDATA%\Microsoft\Windows\SendTo`). It does not replace the default app used when a file is double-clicked. A later launch of the same example forwards its arguments to the running window and exits, so quit the example before starting `flutter run` again.
+
+- **Cold start**: Explorer starts the exe with the file paths. `getInitialSharing()` returns them.
+- **Already running**: the new process sends `WM_COPYDATA` (`dwData = 0x58485348`, UTF-8 arguments separated by newlines) and exits. `onSharingReceived` emits the payload. Several selected files arrive in one payload (`MultiSelectModel = Player`, up to 100 files for this static verb).
+
+```bash
+cd example
+flutter run -d windows
+```
+
+Right-click a file and choose **Send to → Xue Hua Accept Sharing Example**.
+
+An optional installer, which still uses the same startup registration and does not add a Share Target:
+
+```bash
+cd example
+fpack build exe
+```
+
+Run the `dist/*-windows-x64-setup.exe` produced by [fpack](https://pub.dev/packages/fpack) (`example/fpack.yaml`).
+
+Copy `example/windows/runner/single_instance.*` and `example/windows/runner/explorer_registration.*` into your own runner and call them from `wWinMain` before the window is created. The forwarder finds `FLUTTER_RUNNER_WIN32_WINDOW` by your window title. The plugin ignores `WM_COPYDATA` unless `dwData` is `0x58485348`.
 
 ```cpp
-HWND existing_window = ::FindWindowW(L"FLUTTER_RUNNER_WIN32_WINDOW", L"Your Window Title");
-if (existing_window != nullptr) {
-  std::vector<std::string> args = GetCommandLineArguments();
-  if (!args.empty()) {
-    std::string joined;
-    for (const auto& arg : args) {
-      joined += arg + "\n";
-    }
-    COPYDATASTRUCT cds{};
-    cds.dwData = 0x58485348; // 'XHSH'
-    cds.cbData = static_cast<DWORD>(joined.size());
-    cds.lpData = const_cast<char*>(joined.data());
-    ::SendMessageW(existing_window, WM_COPYDATA, 0, reinterpret_cast<LPARAM>(&cds));
-  }
-  ::SetForegroundWindow(existing_window);
+if (ForwardToExistingInstance(command_line_arguments)) {
+  ::CoUninitialize();
   return EXIT_SUCCESS;
 }
+RegisterExplorerIntegration();
 ```
 
 ### 5. Linux (Open with and .desktop launcher)

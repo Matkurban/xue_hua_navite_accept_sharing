@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Matkurban/fpack/main/schema/fpack.schema.json
+# Optional Windows installer for this example. From this directory:
+#   fpack build exe
+# The installed exe registers Send to / Open with / the context menu on
+# first launch. It does not add an MSIX Share Target; Explorer's Share
+# panel will still omit the unpackaged app.
+
+app:
+  display_name: Xue Hua Accept Sharing Example
+  identifier: com.kurban.xue_hua_navite_accept_sharing_example
+  publisher: com.kurban
+
+build:
+  targets: [exe]
+
+windows:
+  inno_setup:
+    app_id: B7E4A1C2-6D58-4F0A-9E3B-1C8A5D2F7E64
+    languages: [zh-CN, en]
+    privileges: user
+    desktop_icon: checked

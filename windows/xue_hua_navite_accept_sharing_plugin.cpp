@@ -269,9 +269,13 @@ std::optional<LRESULT> XueHuaNaviteAcceptSharingPlugin::HandleWindowProc(
     HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
   if (message == WM_COPYDATA && lparam != 0) {
     const auto *cds = reinterpret_cast<const COPYDATASTRUCT *>(lparam);
-    if (cds != nullptr && cds->cbData > 0 && cds->lpData != nullptr) {
-      // Support UTF-8 newline-separated arguments sent via WM_COPYDATA.
-      std::string raw( static_cast<const char *>(cds->lpData), cds->cbData);
+    // Runners forward shares with dwData = kShareCopyDataMagic ('XHSH').
+    // Leave every other WM_COPYDATA for the window procedure.
+    constexpr DWORD kMaxShareBytes = 1024 * 1024;
+    if (cds != nullptr && cds->dwData == kShareCopyDataMagic && cds->cbData > 0 &&
+        cds->cbData <= kMaxShareBytes && cds->lpData != nullptr) {
+      // UTF-8 arguments separated by newlines.
+      std::string raw(static_cast<const char *>(cds->lpData), cds->cbData);
       while (!raw.empty() && (raw.back() == '\0' || raw.back() == '\r' ||
                               raw.back() == '\n')) {
         raw.pop_back();

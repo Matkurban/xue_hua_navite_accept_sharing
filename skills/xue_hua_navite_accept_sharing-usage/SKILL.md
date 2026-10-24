@@ -231,6 +231,6 @@ In `android/app/src/main/AndroidManifest.xml`, set `android:launchMode="singleTo
 
 ### 4. Windows, Linux & Web Share Menu Integration
 
-* **Windows**: Add a shortcut to `shell:sendto` (`%APPDATA%\Microsoft\Windows\SendTo`) for right-click "Send to" menu support, and forward `WM_COPYDATA` (`dwData = 0x58485348`) in `windows/runner/main.cpp` for single-instance warm-start sharing.
+* **Windows**: Copy `example/windows/runner/single_instance.*` and `explorer_registration.*` into the app runner. On startup they register a `shell:sendto` shortcut, a file context-menu verb, and Open with entries for the current exe, and forward later launches with `WM_COPYDATA` (`dwData = 0x58485348`). Explorer's Share panel only lists packaged MSIX Share Targets, so `flutter run` will not appear there. Optional installer: from `example/`, run `fpack build exe` (`example/fpack.yaml`).
 * **Linux**: Configure `Exec=/path/to/app %U` and `MimeType=...` in `~/.local/share/applications/<app>.desktop`.
 * **Web (PWA)**: Add `share_target` (`method: "POST"`, `enctype: "multipart/form-data"`) to `web/manifest.json` and forward multipart form data in the Service Worker via `BroadcastChannel('xue_hua_navite_accept_sharing')`.

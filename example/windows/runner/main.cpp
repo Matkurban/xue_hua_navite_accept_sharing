@@ -2,7 +2,9 @@
 #include <flutter/flutter_view_controller.h>
 #include <windows.h>
 
+#include "explorer_registration.h"
 #include "flutter_window.h"
+#include "single_instance.h"
 #include "utils.h"
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
@@ -14,20 +16,29 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   }
 
   // Initialize COM, so that it is available for use in the library and/or
-  // plugins.
+  // plugins. Explorer shortcut registration also needs an STA.
   ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
-  flutter::DartProject project(L"data");
+  std::vector<std::string> command_line_arguments = GetCommandLineArguments();
 
-  std::vector<std::string> command_line_arguments =
-      GetCommandLineArguments();
+  // Send to / Open with start a new process. Hand the paths to the window
+  // that is already running, then leave so Explorer does not open a second copy.
+  if (ForwardToExistingInstance(command_line_arguments)) {
+    ::CoUninitialize();
+    return EXIT_SUCCESS;
+  }
+
+  RegisterExplorerIntegration();
+
+  flutter::DartProject project(L"data");
 
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
-  if (!window.Create(L"xue_hua_navite_accept_sharing_example", origin, size)) {
+  if (!window.Create(kExampleWindowTitle, origin, size)) {
+    ::CoUninitialize();
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);
