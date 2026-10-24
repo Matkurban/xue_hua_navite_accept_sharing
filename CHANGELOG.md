@@ -1,6 +1,4 @@
-## Unreleased
-
-* Windows example: on startup, register Send to, a file context-menu command, and Open with for the current exe, and forward a later launch to the running window with `WM_COPYDATA`.
+## 1.0.4`n`n* Windows example: on startup, register Send to, a file context-menu command, and Open with for the current exe, and forward a later launch to the running window with `WM_COPYDATA`.
 * Windows: ignore `WM_COPYDATA` unless `dwData` is `0x58485348`.
 
 ## 1.0.3
