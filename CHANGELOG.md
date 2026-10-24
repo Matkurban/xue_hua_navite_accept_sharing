@@ -1,12 +1,16 @@
-## 1.0.4`n`n* Windows example: on startup, register Send to, a file context-menu command, and Open with for the current exe, and forward a later launch to the running window with `WM_COPYDATA`.
+## 1.0.4
+
+* Windows example: on startup, register Send to, a file context-menu command, and Open with for the current exe, and forward a later launch to the running window with `WM_COPYDATA`.
 * Windows: ignore `WM_COPYDATA` unless `dwData` is `0x58485348`.
 
 ## 1.0.3
 
 * Linux: support CMake 4 builds (bump googletest, CMake policy range).
+
 ## 1.0.2
 
 * Windows: support CMake 4 / Visual Studio 2026 builds (bump googletest, CMake policy range, include `encodable_value.h`).
+
 ## 1.0.1
 
 * Publish the package guide in English as `README.md`, and keep the Simplified Chinese guide as `README.zh-CN.md`.
