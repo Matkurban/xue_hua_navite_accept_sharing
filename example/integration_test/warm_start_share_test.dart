@@ -5,8 +5,9 @@ import 'package:integration_test/integration_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:xue_hua_navite_accept_sharing_example/main.dart';
 
-/// Verifies Linux unique-instance warm start:
-/// a second process with --text forwards into the running window.
+/// Verifies desktop single-instance warm start:
+/// a second process with --text forwards into the running window
+/// (Linux unique GtkApplication / Windows WM_COPYDATA).
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -22,7 +23,7 @@ void main() {
 
     final exe = Platform.resolvedExecutable;
     final result = await Process.run(exe, <String>['--text', marker]);
-    // Unique GtkApplication: the secondary activation should exit promptly.
+    // Secondary activation should hand off and exit promptly.
     expect(result.exitCode, 0,
         reason: 'Secondary unique-instance activation should exit 0. '
             'stderr=${result.stderr}');
@@ -46,5 +47,5 @@ void main() {
     await tester.tap(find.byKey(const Key('clearCleanupButton')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('emptyHint')), findsOneWidget);
-  }, skip: !Platform.isLinux);
+  }, skip: !(Platform.isLinux || Platform.isWindows));
 }

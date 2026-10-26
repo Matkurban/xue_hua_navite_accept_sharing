@@ -23,7 +23,7 @@ void main() {
   testWidgets('getInitialSharing clearInitialSharing cleanupTempFiles API', (
     WidgetTester tester,
   ) async {
-    // Do not pump MyApp first — it consumes and clears the cold-start payload.
+    // Do not pump MyApp first 鈥?it consumes and clears the cold-start payload.
     final SharedPayload? payload = await plugin.getInitialSharing();
     // Without share args: null. With --text / file args: non-empty.
     expect(payload == null || payload.isNotEmpty, isTrue);
@@ -54,8 +54,8 @@ void main() {
   testWidgets('onSharingReceived stream is subscribable', (
     WidgetTester tester,
   ) async {
-    // Linux currently has no warm-start IPC; the stream must still be
-    // listen-able without throwing. We only assert subscription succeeds.
+    // Desktop warm-start is covered in warm_start_share_test.dart;
+    // here we only assert the stream is listen-able without throwing.
     final sub = plugin.onSharingReceived.listen((_) {});
     await tester.pump(const Duration(milliseconds: 200));
     await sub.cancel();
