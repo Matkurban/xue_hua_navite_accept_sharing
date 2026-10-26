@@ -1,3 +1,8 @@
+## 1.0.6
+
+* Example: expand `flutter drive` / `integration_test` coverage for Windows warm-start (second-process handoff via `WM_COPYDATA`), cold-start URL typing, and multi-file cold-start.
+* Example: resolve cold-start file drive assets from the system temp directory so the same paths work on Windows and Linux.
+
 ## 1.0.5
 
 * Linux: wire `FlEventChannel` listen/cancel handlers and emit warm-start payloads with `fl_event_channel_send`.
