@@ -29,13 +29,20 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _initSharingListener() async {
     try {
-      final initial = await _sharingPlugin.getInitialSharing();
-      if (initial != null && initial.isNotEmpty) {
+      // Plugin waits for native cold-start extract; retry briefly for slow file copies.
+      SharedPayload? initial;
+      for (var i = 0; i < 10; i++) {
+        initial = await _sharingPlugin.getInitialSharing();
+        if (initial != null && initial.isNotEmpty) break;
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+      final coldStart = initial;
+      if (coldStart != null && coldStart.isNotEmpty) {
         if (!mounted) return;
         setState(() {
-          _latestPayload = initial;
+          _latestPayload = coldStart;
           _statusMessage =
-              'Received initial sharing (${initial.items.length} item(s))';
+              'Received initial sharing (${coldStart.items.length} item(s))';
         });
         await _sharingPlugin.clearInitialSharing();
       }

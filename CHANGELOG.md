@@ -1,3 +1,9 @@
+## 1.0.8
+
+* Android: wait for cold-start intent extraction before `getInitialSharing` returns (avoids racing file copies).
+* Android: queue warm-start payloads until the Dart event-channel listener attaches (parity with iOS/macOS).
+* Example: briefly retry `getInitialSharing` on startup; add `tooling/android_intent_e2e.sh` for emulator Intent cold/warm coverage (API 28/30/36).
+
 ## 1.0.7
 
 * macOS: parse `--text`, file paths, and http(s) URLs from process arguments for cold-start parity with Linux/Windows (`flutter drive -a`, `open App.app --args`).
