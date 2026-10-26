@@ -12,6 +12,7 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
 
   private var eventSink: FlutterEventSink?
   internal var initialPayload: [String: Any?]?
+  private var pendingStreamPayloads: [[String: Any?]] = []
   private var hasLaunched = false
 
   public static func register(with registrar: FlutterPluginRegistrar) {
@@ -73,6 +74,15 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
     eventSink events: @escaping FlutterEventSink
   ) -> FlutterError? {
     self.eventSink = events
+    if !pendingStreamPayloads.isEmpty {
+      let queued = pendingStreamPayloads
+      pendingStreamPayloads.removeAll()
+      DispatchQueue.main.async {
+        for item in queued {
+          events(item)
+        }
+      }
+    }
     return nil
   }
 
@@ -205,15 +215,68 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
 
   internal func deliverPayload(_ payload: [String: Any?], isInitial: Bool) {
     if isInitial && !hasLaunched {
-      initialPayload = payload
+      // Multiple cold-start openURL / document callbacks can arrive one-by-one.
+      if let existing = initialPayload {
+        initialPayload = Self.mergePayloads(existing, payload)
+      } else {
+        initialPayload = payload
+      }
     } else {
       if initialPayload == nil && !hasLaunched {
         initialPayload = payload
       }
       DispatchQueue.main.async { [weak self] in
-        self?.eventSink?(payload)
+        guard let self = self else { return }
+        if let sink = self.eventSink {
+          sink(payload)
+        } else {
+          self.pendingStreamPayloads.append(payload)
+        }
       }
     }
+  }
+
+  /// Merges two payloads by appending items and de-duplicating on `content`.
+  internal static func mergePayloads(
+    _ left: [String: Any?],
+    _ right: [String: Any?]
+  ) -> [String: Any?] {
+    var items: [[String: Any?]] = []
+    if let leftItems = left["items"] as? [[String: Any?]] {
+      items.append(contentsOf: leftItems)
+    } else if let leftItems = left["items"] as? [[String: Any]] {
+      items.append(contentsOf: leftItems.map { dict in
+        var out: [String: Any?] = [:]
+        for (k, v) in dict { out[k] = v }
+        return out
+      })
+    }
+    if let rightItems = right["items"] as? [[String: Any?]] {
+      items.append(contentsOf: rightItems)
+    } else if let rightItems = right["items"] as? [[String: Any]] {
+      items.append(contentsOf: rightItems.map { dict in
+        var out: [String: Any?] = [:]
+        for (k, v) in dict { out[k] = v }
+        return out
+      })
+    }
+
+    var seen = Set<String>()
+    var unique: [[String: Any?]] = []
+    for item in items {
+      let key = (item["content"] as? String) ?? String(describing: item)
+      if seen.insert(key).inserted {
+        unique.append(item)
+      }
+    }
+
+    let text = (left["text"] as? String) ?? (right["text"] as? String)
+    let subject = (left["subject"] as? String) ?? (right["subject"] as? String)
+    return [
+      "items": unique,
+      "text": text,
+      "subject": subject,
+    ]
   }
 
   // MARK: - File & Metadata Resolution

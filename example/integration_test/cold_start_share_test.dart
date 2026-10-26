@@ -5,7 +5,7 @@ import 'package:xue_hua_navite_accept_sharing/xue_hua_navite_accept_sharing.dart
 import 'package:xue_hua_navite_accept_sharing_example/main.dart';
 
 /// Run with:
-///   flutter drive -d windows|linux \
+///   flutter drive -d windows|linux|macos \
 ///     --driver=test_driver/integration_test.dart \
 ///     --target=integration_test/cold_start_share_test.dart \
 ///     -a '--text' -a 'E2E_SHARE_TEXT_MARKER'

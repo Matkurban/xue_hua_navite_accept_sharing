@@ -43,6 +43,10 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
     )
 
     instance.checkAppGroupPayload(isInitial: true)
+    // CLI / flutter drive -a parity with Linux & Windows (--text, files, URLs).
+    if instance.initialPayload == nil {
+      instance.ingestCommandLineArguments(isInitial: true)
+    }
   }
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -270,7 +274,13 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
 
   internal func deliverPayload(_ payload: [String: Any?], isInitial: Bool) {
     if isInitial && !hasLaunched {
-      initialPayload = payload
+      // macOS may call application(_:openFile:) once per path on cold start;
+      // merge so multi-file Open With / argv shares are not overwritten.
+      if let existing = initialPayload {
+        initialPayload = Self.mergePayloads(existing, payload)
+      } else {
+        initialPayload = payload
+      }
     } else {
       if initialPayload == nil {
         initialPayload = payload
@@ -284,6 +294,49 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
         }
       }
     }
+  }
+
+  /// Merges two payloads by appending items and de-duplicating on `content`.
+  internal static func mergePayloads(
+    _ left: [String: Any?],
+    _ right: [String: Any?]
+  ) -> [String: Any?] {
+    var items: [[String: Any?]] = []
+    if let leftItems = left["items"] as? [[String: Any?]] {
+      items.append(contentsOf: leftItems)
+    } else if let leftItems = left["items"] as? [[String: Any]] {
+      items.append(contentsOf: leftItems.map { dict in
+        var out: [String: Any?] = [:]
+        for (k, v) in dict { out[k] = v }
+        return out
+      })
+    }
+    if let rightItems = right["items"] as? [[String: Any?]] {
+      items.append(contentsOf: rightItems)
+    } else if let rightItems = right["items"] as? [[String: Any]] {
+      items.append(contentsOf: rightItems.map { dict in
+        var out: [String: Any?] = [:]
+        for (k, v) in dict { out[k] = v }
+        return out
+      })
+    }
+
+    var seen = Set<String>()
+    var unique: [[String: Any?]] = []
+    for item in items {
+      let key = (item["content"] as? String) ?? String(describing: item)
+      if seen.insert(key).inserted {
+        unique.append(item)
+      }
+    }
+
+    let text = (left["text"] as? String) ?? (right["text"] as? String)
+    let subject = (left["subject"] as? String) ?? (right["subject"] as? String)
+    return [
+      "items": unique,
+      "text": text,
+      "subject": subject,
+    ]
   }
 
   internal func buildTextItem(_ text: String, subject: String? = nil) -> [String: Any?] {
@@ -348,7 +401,101 @@ public class XueHuaNaviteAcceptSharingPlugin: NSObject, FlutterPlugin, FlutterSt
     return "file"
   }
 
+  /// Parses ProcessInfo arguments for `--text`, http(s) URLs, and existing files.
+  /// Skips the executable and Flutter/engine internal flags. Used for cold-start
+  /// via `flutter drive -a` / `open App.app --args`, matching Linux/Windows.
+  @discardableResult
+  public func ingestCommandLineArguments(isInitial: Bool) -> Bool {
+    let args = Array(ProcessInfo.processInfo.arguments.dropFirst())
+    guard !args.isEmpty else { return false }
+
+    var items: [[String: Any?]] = []
+    var sharedText: String?
+    var i = 0
+    while i < args.count {
+      let arg = args[i]
+      if arg.isEmpty {
+        i += 1
+        continue
+      }
+
+      // Ignore Flutter / Dart VM / tooling flags.
+      if arg.hasPrefix("--dart-") ||
+          arg.hasPrefix("--observatory") ||
+          arg.hasPrefix("--vm-service") ||
+          arg.hasPrefix("--enable-") ||
+          arg.hasPrefix("--disable-") ||
+          arg.hasPrefix("--trace-") ||
+          arg == "--verbose" ||
+          arg == "-v" ||
+          arg.hasPrefix("--device-") ||
+          arg.hasPrefix("--software") ||
+          arg.hasPrefix("-NS") ||
+          arg.hasPrefix("-Apple") {
+        i += 1
+        continue
+      }
+
+      if arg == "--text", i + 1 < args.count {
+        i += 1
+        let value = args[i]
+        if sharedText == nil { sharedText = value }
+        items.append(buildTextItem(value))
+        i += 1
+        continue
+      }
+
+      if arg.hasPrefix("--") {
+        i += 1
+        continue
+      }
+
+      if arg.lowercased().hasPrefix("http://") || arg.lowercased().hasPrefix("https://") {
+        items.append([
+          "type": "url",
+          "content": arg,
+          "mimeType": "text/uri-list",
+        ])
+        if sharedText == nil { sharedText = arg }
+        i += 1
+        continue
+      }
+
+      if arg.lowercased().hasPrefix("file://"),
+         let url = URL(string: arg), url.isFileURL,
+         let item = resolveFileURL(url) {
+        items.append(item)
+        i += 1
+        continue
+      }
+
+      var isDirectory: ObjCBool = false
+      if FileManager.default.fileExists(atPath: arg, isDirectory: &isDirectory),
+         !isDirectory.boolValue,
+         let item = resolveFileURL(URL(fileURLWithPath: arg)) {
+        items.append(item)
+        i += 1
+        continue
+      }
+
+      // Unrecognized non-flag token: treat as shared text (Linux/Windows parity).
+      if sharedText == nil { sharedText = arg }
+      items.append(buildTextItem(arg))
+      i += 1
+    }
+
+    guard !items.isEmpty else { return false }
+    let payload: [String: Any?] = [
+      "items": items,
+      "text": sharedText,
+      "subject": nil,
+    ]
+    deliverPayload(payload, isInitial: isInitial)
+    return true
+  }
+
   private func cleanupTemporaryFiles() -> Bool {
+
     let fileManager = FileManager.default
     let cacheDir = fileManager.temporaryDirectory.appendingPathComponent(
       Self.sharedCacheDirName,

@@ -11,20 +11,36 @@ import 'package:xue_hua_navite_accept_sharing/xue_hua_navite_accept_sharing.dart
 ///     --driver=test_driver/integration_test.dart \
 ///     --target=integration_test/cold_start_file_test.dart \
 ///     -a "%TEMP%\share_test_assets\hello.txt"
-///   flutter drive -d linux \
+///   flutter drive -d linux|macos \
 ///     --driver=test_driver/integration_test.dart \
 ///     --target=integration_test/cold_start_file_test.dart \
 ///     -a /tmp/share_test_assets/hello.txt
+///
+/// On sandboxed macOS, [Directory.systemTemp] is the container tmp, so drive
+/// assets always live under the real `/tmp/share_test_assets` (allowed by the
+/// example's temporary-exception entitlement).
 String coldStartShareFilePath() {
-  return [
-    Directory.systemTemp.path,
-    'share_test_assets',
-    'hello.txt',
-  ].join(Platform.pathSeparator);
+  if (Platform.isWindows) {
+    return [
+      Directory.systemTemp.path,
+      'share_test_assets',
+      'hello.txt',
+    ].join(Platform.pathSeparator);
+  }
+  return '/tmp/share_test_assets/hello.txt';
 }
 
 String normalizePath(String value) {
-  return File(value).absolute.path.replaceAll('/', r'\').toLowerCase();
+  final absolute = File(value).absolute.path;
+  if (Platform.isWindows) {
+    return absolute.replaceAll('/', r'\').toLowerCase();
+  }
+  // macOS: /tmp -> /private/tmp
+  try {
+    return File(absolute).resolveSymbolicLinksSync().toLowerCase();
+  } catch (_) {
+    return absolute.replaceAll('\\', '/').toLowerCase();
+  }
 }
 
 void main() {

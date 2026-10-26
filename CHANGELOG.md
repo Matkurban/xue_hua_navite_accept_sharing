@@ -1,3 +1,10 @@
+## 1.0.7
+
+* macOS: parse `--text`, file paths, and http(s) URLs from process arguments for cold-start parity with Linux/Windows (`flutter drive -a`, `open App.app --args`).
+* macOS/iOS: merge cold-start payloads when the system delivers multiple `openFile` / `openURL` callbacks one-by-one (multi-file shares were previously overwritten).
+* iOS: queue warm-start payloads until the Dart event-channel listener attaches (same behavior as macOS), avoiding dropped Share Extension / URL handoffs.
+* example: macOS flutter drive E2E coverage for cold start, Share Extension `/tmp` + activation warm start, and Open With while running; fix sandboxed `/tmp` test asset paths.
+
 ## 1.0.6
 
 * Example: expand `flutter drive` / `integration_test` coverage for Windows warm-start (second-process handoff via `WM_COPYDATA`), cold-start URL typing, and multi-file cold-start.
