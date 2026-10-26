@@ -89,6 +89,7 @@ class _MyAppState extends State<MyApp> {
           title: const Text('Accept Sharing Example'),
           actions: <Widget>[
             IconButton(
+              key: const Key('clearCleanupButton'),
               icon: const Icon(Icons.delete_outline),
               tooltip: 'Clear & Cleanup Temp Files',
               onPressed: _clearAndCleanup,
@@ -102,6 +103,7 @@ class _MyAppState extends State<MyApp> {
             children: <Widget>[
               Text(
                 'Status: $_statusMessage',
+                key: const Key('statusText'),
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 12),
@@ -117,6 +119,7 @@ class _MyAppState extends State<MyApp> {
                 child: payload == null || payload.items.isEmpty
                     ? const Center(
                         child: Text(
+                          key: Key('emptyHint'),
                           'Share any text, link, image, video, audio, or file '
                           'from another app to this app to inspect it here.\n\n'
                           'Windows: right-click a file and use Send to → '

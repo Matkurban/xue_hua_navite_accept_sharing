@@ -41,3 +41,35 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+
+## Linux integration tests (flutter drive)
+
+From this `example/` directory (needs a display / `xvfb-run`):
+
+```bash
+# Basic UI + API
+flutter drive -d linux \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/plugin_integration_test.dart
+
+# Cold start with shared text
+flutter drive -d linux \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/cold_start_share_test.dart \
+  -a '--text' -a 'E2E_SHARE_TEXT_MARKER'
+
+# Cold start with a file path
+flutter drive -d linux \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/cold_start_file_test.dart \
+  -a '/tmp/share_test_assets/hello.txt'
+
+# Warm start (unique-instance second process)
+flutter drive -d linux \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/warm_start_share_test.dart
+```
+
+Native Linux parser unit tests are built with the example and live at
+`build/linux/x64/debug/plugins/xue_hua_navite_accept_sharing/xue_hua_navite_accept_sharing_test`.
+

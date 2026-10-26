@@ -731,6 +731,11 @@ Categories=Utility;
 MimeType=text/plain;image/*;video/*;audio/*;application/pdf;application/octet-stream;x-scheme-handler/http;x-scheme-handler/https;
 ```
 
+**冷启动：** Linux 插件从 `/proc/self/cmdline` 解析 `--text <value>`、`http(s)://` URL、`file://` URI 与普通文件路径，并通过 `getInitialSharing()` 暴露。
+
+**热启动：** 宿主需注册带 `G_APPLICATION_HANDLES_COMMAND_LINE` 的**单实例** `GtkApplication`（参见 `example/linux/runner/my_application.cc`）。之后的“打开方式”/`.desktop` 激活应调用 `xue_hua_navite_accept_sharing_plugin_dispatch_arguments()`，以便运行中的实例在 `onSharingReceived` 上发出事件。若宿主保持多实例，则每次打开都会新起进程，仅冷启动生效。Linux 上 `cleanupTempFiles()` 为空操作，因为分享使用原始路径而非缓存副本。
+
+
 ### 6. Web (PWA) 系统共享菜单集成（Web Share Target API）
 
 在 `web/manifest.json` 中配置 `share_target`，并配合 Service Worker 拦截 `/_share_target` `POST` 请求通过 `BroadcastChannel('xue_hua_navite_accept_sharing')` 转发，即可在安装 PWA 后出现在系统分享菜单中：

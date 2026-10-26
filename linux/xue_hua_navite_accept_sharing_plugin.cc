@@ -16,11 +16,15 @@ struct _XueHuaNaviteAcceptSharingPlugin {
   GObject parent_instance;
   FlValue* initial_payload;
   FlEventChannel* event_channel;
+  gboolean events_listening;
 };
 
 G_DEFINE_TYPE(XueHuaNaviteAcceptSharingPlugin,
               xue_hua_navite_accept_sharing_plugin,
               g_object_get_type())
+
+// Weak pointer to the registered plugin instance for runner warm-start dispatch.
+static XueHuaNaviteAcceptSharingPlugin* g_plugin_instance = nullptr;
 
 static const gchar* classify_mime_type(const gchar* mime_type) {
   if (mime_type == nullptr) {
@@ -187,6 +191,41 @@ static FlValue* parse_proc_cmdline() {
   return payload;
 }
 
+static void emit_or_store_payload(XueHuaNaviteAcceptSharingPlugin* self,
+                                  FlValue* payload) {
+  if (payload == nullptr || self == nullptr) {
+    return;
+  }
+
+  if (self->events_listening && self->event_channel != nullptr) {
+    g_autoptr(GError) error = nullptr;
+    if (!fl_event_channel_send(self->event_channel, payload, nullptr, &error)) {
+      g_warning("xue_hua_navite_accept_sharing: failed to emit share event: %s",
+                error != nullptr ? error->message : "unknown");
+    }
+    fl_value_unref(payload);
+    return;
+  }
+
+  g_clear_pointer(&self->initial_payload, fl_value_unref);
+  self->initial_payload = payload;
+}
+
+void xue_hua_navite_accept_sharing_plugin_dispatch_arguments(
+    const gchar* const* args,
+    gint argc) {
+  if (g_plugin_instance == nullptr) {
+    return;
+  }
+  FlValue* payload = parse_shared_arguments(args, argc);
+  if (payload == nullptr) {
+    return;
+  }
+  // When Dart is already listening, this is a warm/hot share.
+  // Otherwise store as cold-start initial payload.
+  emit_or_store_payload(g_plugin_instance, payload);
+}
+
 static void xue_hua_navite_accept_sharing_plugin_handle_method_call(
     XueHuaNaviteAcceptSharingPlugin* self,
     FlMethodCall* method_call) {
@@ -206,6 +245,7 @@ static void xue_hua_navite_accept_sharing_plugin_handle_method_call(
     g_autoptr(FlValue) null_val = fl_value_new_null();
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(null_val));
   } else if (strcmp(method, "cleanupTempFiles") == 0) {
+    // Linux uses original file paths from argv / Open with; no staged copies.
     g_autoptr(FlValue) null_val = fl_value_new_null();
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(null_val));
   } else {
@@ -218,6 +258,9 @@ static void xue_hua_navite_accept_sharing_plugin_handle_method_call(
 static void xue_hua_navite_accept_sharing_plugin_dispose(GObject* object) {
   XueHuaNaviteAcceptSharingPlugin* self =
       XUE_HUA_NAVITE_ACCEPT_SHARING_PLUGIN(object);
+  if (g_plugin_instance == self) {
+    g_plugin_instance = nullptr;
+  }
   g_clear_pointer(&self->initial_payload, fl_value_unref);
   g_clear_object(&self->event_channel);
   G_OBJECT_CLASS(xue_hua_navite_accept_sharing_plugin_parent_class)
@@ -231,8 +274,10 @@ static void xue_hua_navite_accept_sharing_plugin_class_init(
 
 static void xue_hua_navite_accept_sharing_plugin_init(
     XueHuaNaviteAcceptSharingPlugin* self) {
+  // Cold-start fallback when the host does not call dispatch_arguments.
   self->initial_payload = parse_proc_cmdline();
   self->event_channel = nullptr;
+  self->events_listening = FALSE;
 }
 
 static void method_call_cb(FlMethodChannel* channel, FlMethodCall* method_call,
@@ -242,10 +287,29 @@ static void method_call_cb(FlMethodChannel* channel, FlMethodCall* method_call,
   xue_hua_navite_accept_sharing_plugin_handle_method_call(plugin, method_call);
 }
 
+static FlMethodErrorResponse* event_listen_cb(FlEventChannel* channel,
+                                              FlValue* args,
+                                              gpointer user_data) {
+  XueHuaNaviteAcceptSharingPlugin* plugin =
+      XUE_HUA_NAVITE_ACCEPT_SHARING_PLUGIN(user_data);
+  plugin->events_listening = TRUE;
+  return nullptr;
+}
+
+static FlMethodErrorResponse* event_cancel_cb(FlEventChannel* channel,
+                                              FlValue* args,
+                                              gpointer user_data) {
+  XueHuaNaviteAcceptSharingPlugin* plugin =
+      XUE_HUA_NAVITE_ACCEPT_SHARING_PLUGIN(user_data);
+  plugin->events_listening = FALSE;
+  return nullptr;
+}
+
 void xue_hua_navite_accept_sharing_plugin_register_with_registrar(
     FlPluginRegistrar* registrar) {
   XueHuaNaviteAcceptSharingPlugin* plugin = XUE_HUA_NAVITE_ACCEPT_SHARING_PLUGIN(
       g_object_new(xue_hua_navite_accept_sharing_plugin_get_type(), nullptr));
+  g_plugin_instance = plugin;
 
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
   g_autoptr(FlMethodChannel) channel =
@@ -260,6 +324,9 @@ void xue_hua_navite_accept_sharing_plugin_register_with_registrar(
       fl_event_channel_new(fl_plugin_registrar_get_messenger(registrar),
                            "xue_hua_navite_accept_sharing/events",
                            FL_METHOD_CODEC(codec));
+  fl_event_channel_set_stream_handlers(plugin->event_channel, event_listen_cb,
+                                       event_cancel_cb, g_object_ref(plugin),
+                                       g_object_unref);
 
   g_object_unref(plugin);
 }
