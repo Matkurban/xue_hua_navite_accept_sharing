@@ -21,7 +21,11 @@ import io.flutter.plugin.common.PluginRegistry
 import java.io.File
 import java.io.FileOutputStream
 import java.util.Locale
+import java.util.ArrayDeque
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** XueHuaNaviteAcceptSharingPlugin */
 class XueHuaNaviteAcceptSharingPlugin :
@@ -44,12 +48,18 @@ class XueHuaNaviteAcceptSharingPlugin :
     private var applicationContext: Context? = null
     private var activityBinding: ActivityPluginBinding? = null
     private var eventSink: EventChannel.EventSink? = null
+    private val pendingEvents = ArrayDeque<Map<String, Any?>>()
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val ioExecutor = Executors.newSingleThreadExecutor()
 
     @Volatile
     internal var initialPayload: Map<String, Any?>? = null
+
+    /** Completes after the launch-intent (cold-start) extract finishes or is skipped. */
+    @Volatile
+    private var initialProcessingLatch: CountDownLatch? = null
+    private val initialProcessingStarted = AtomicBoolean(false)
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         applicationContext = flutterPluginBinding.applicationContext
@@ -68,7 +78,11 @@ class XueHuaNaviteAcceptSharingPlugin :
 
     override fun onMethodCall(call: MethodCall, result: Result) {
         when (call.method) {
-            "getInitialSharing" -> result.success(initialPayload)
+            "getInitialSharing" -> {
+                // Wait briefly so cold-start file copies can finish before Dart reads.
+                initialProcessingLatch?.await(5, TimeUnit.SECONDS)
+                result.success(initialPayload)
+            }
             "clearInitialSharing" -> {
                 initialPayload = null
                 result.success(null)
@@ -91,6 +105,10 @@ class XueHuaNaviteAcceptSharingPlugin :
 
     override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
         eventSink = events
+        while (pendingEvents.isNotEmpty()) {
+            val payload = pendingEvents.removeFirst()
+            events?.success(payload)
+        }
     }
 
     override fun onCancel(arguments: Any?) {
@@ -100,8 +118,14 @@ class XueHuaNaviteAcceptSharingPlugin :
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         activityBinding = binding
         binding.addOnNewIntentListener(this)
+        if (initialProcessingLatch == null) {
+            initialProcessingLatch = CountDownLatch(1)
+        }
         binding.activity.intent?.let { intent ->
             processIntent(intent, isInitial = true)
+        } ?: run {
+            // No launch intent to process; unblock getInitialSharing waiters.
+            initialProcessingLatch?.countDown()
         }
     }
 
@@ -126,28 +150,48 @@ class XueHuaNaviteAcceptSharingPlugin :
     }
 
     internal fun processIntent(intent: Intent, isInitial: Boolean): Boolean {
-        val action = intent.action ?: return false
-        if (action != Intent.ACTION_SEND &&
-            action != Intent.ACTION_SEND_MULTIPLE &&
-            action != Intent.ACTION_VIEW
+        val action = intent.action
+        if (action == null ||
+            (action != Intent.ACTION_SEND &&
+                action != Intent.ACTION_SEND_MULTIPLE &&
+                action != Intent.ACTION_VIEW)
         ) {
+            if (isInitial) {
+                initialProcessingLatch?.countDown()
+            }
             return false
         }
 
         if (isInitial && intent.getBooleanExtra(INTENT_CONSUMED_KEY, false)) {
+            initialProcessingLatch?.countDown()
             return false
         }
         intent.putExtra(INTENT_CONSUMED_KEY, true)
 
+        if (isInitial && initialProcessingStarted.compareAndSet(false, true)) {
+            initialProcessingLatch = CountDownLatch(1)
+        }
+
         ioExecutor.execute {
-            val payload = extractPayloadFromIntent(intent)
-            if (payload != null) {
-                if (isInitial) {
-                    initialPayload = payload
-                } else {
-                    mainHandler.post {
-                        eventSink?.success(payload)
+            try {
+                val payload = extractPayloadFromIntent(intent)
+                if (payload != null) {
+                    if (isInitial) {
+                        initialPayload = payload
+                    } else {
+                        mainHandler.post {
+                            val sink = eventSink
+                            if (sink != null) {
+                                sink.success(payload)
+                            } else {
+                                pendingEvents.addLast(payload)
+                            }
+                        }
                     }
+                }
+            } finally {
+                if (isInitial) {
+                    initialProcessingLatch?.countDown()
                 }
             }
         }
