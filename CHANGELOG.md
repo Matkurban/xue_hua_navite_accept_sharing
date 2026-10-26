@@ -1,3 +1,11 @@
+## Unreleased
+
+* Linux: wire `FlEventChannel` listen/cancel handlers and emit warm-start payloads with `fl_event_channel_send`.
+* Linux: export `xue_hua_navite_accept_sharing_plugin_dispatch_arguments()` for unique-instance `GtkApplication` command-line forwarding.
+* Example (Linux): switch to a unique `GtkApplication` with `G_APPLICATION_HANDLES_COMMAND_LINE` so a later Open with / `--text` activation updates the running window via `onSharingReceived`.
+* Example: add `flutter drive` / `integration_test` coverage for cold-start text, cold-start file, warm-start, Clear & Cleanup UI, and Keys for driver targeting.
+* Docs: clarify Linux cold-start (`/proc/self/cmdline`) vs warm-start (unique-instance + dispatch) requirements.
+
 ## 1.0.4
 
 * Windows example: on startup, register Send to, a file context-menu command, and Open with for the current exe, and forward a later launch to the running window with `WM_COPYDATA`.

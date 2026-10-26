@@ -736,6 +736,10 @@ Categories=Utility;
 MimeType=text/plain;image/*;video/*;audio/*;application/pdf;application/octet-stream;x-scheme-handler/http;x-scheme-handler/https;
 ```
 
+**Cold start:** the Linux plugin reads `/proc/self/cmdline` for `--text <value>`, `http(s)://` URLs, `file://` URIs, and regular file paths, then exposes them via `getInitialSharing()`.
+
+**Warm start:** register a **unique** `GtkApplication` with `G_APPLICATION_HANDLES_COMMAND_LINE` (see `example/linux/runner/my_application.cc`). On a later Open with / `.desktop` activation, call `xue_hua_navite_accept_sharing_plugin_dispatch_arguments()` so the running instance emits on `onSharingReceived`. Without a unique-instance runner, each Open with starts a new process and only cold-start delivery applies. `cleanupTempFiles()` is a no-op on Linux because shares use the original paths rather than staged cache copies.
+
 ### 6. Web (PWA) system share menu (Web Share Target API)
 
 Declare `share_target` in `web/manifest.json`. A service worker intercepts `POST` `/_share_target` and forwards the body on `BroadcastChannel('xue_hua_navite_accept_sharing')`. After the PWA is installed, it can appear in the system share menu:
