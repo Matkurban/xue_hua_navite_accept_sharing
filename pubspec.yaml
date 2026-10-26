@@ -1,6 +1,6 @@
 name: xue_hua_navite_accept_sharing
 description: "A cross-platform Flutter plugin for receiving shared text, URLs, images, videos, and arbitrary files across Android, iOS, macOS, Windows, Linux, and Web."
-version: 1.0.5
+version: 1.0.6
 homepage: https://github.com/Matkurban/xue_hua_navite_accept_sharing
 repository: https://github.com/Matkurban/xue_hua_navite_accept_sharing
 issue_tracker: https://github.com/Matkurban/xue_hua_navite_accept_sharing/issues
