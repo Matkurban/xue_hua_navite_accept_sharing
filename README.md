@@ -183,6 +183,8 @@ macOS exposes three system entry points, each backed by a different mechanism:
 2. **Finder Services menu**: declared with `NSServices` in the host app `Info.plist`. This plugin already registers `NSApplication.shared.servicesProvider` and handles `handleSharingService`.
 3. **Dropping a file on the Dock icon, or Open With**: declared with `CFBundleDocumentTypes` in the host app `Info.plist`, and delivered through `AppDelegate.application(_:open:)`.
 
+Cold-start via process arguments is also supported for parity with Linux/Windows: `--text <value>`, existing file paths, and `http(s)://` URLs (useful for `flutter drive -a` and `open App.app --args`). Multiple `application(_:openFile:)` callbacks on cold start are merged so multi-file shares are not overwritten.
+
 The steps below wire up all three.
 
 #### Step 1: Configure the host `macos/Runner/Info.plist`

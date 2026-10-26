@@ -182,6 +182,8 @@ class _SharingReceiverPageState extends State<SharingReceiverPage> {
 2. **Finder 右键“服务 (Services)”菜单**：通过主应用 `Info.plist` 中的 `NSServices` 实现（本插件已在原生层自动注册 `NSApplication.shared.servicesProvider` 处理 `handleSharingService`）。
 3. **拖拽文件到 Dock 应用图标 / 右键“打开方式”**：通过主应用 `Info.plist` 中的 `CFBundleDocumentTypes` + `AppDelegate.application(_:open:)` 实现。
 
+同时支持与 Linux/Windows 对齐的进程参数冷启动：`--text <value>`、已存在的文件路径以及 `http(s)://` URL（便于 `flutter drive -a` 与 `open App.app --args`）。冷启动时若系统多次回调 `application(_:openFile:)`，插件会合并 payload，避免多文件分享被覆盖。
+
 以下为同时集成上述三种入口的完整步骤：
 
 #### 第一步：配置主应用 `macos/Runner/Info.plist`

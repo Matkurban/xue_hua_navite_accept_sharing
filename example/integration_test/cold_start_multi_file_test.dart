@@ -5,11 +5,27 @@ import 'package:integration_test/integration_test.dart';
 import 'package:xue_hua_navite_accept_sharing/xue_hua_navite_accept_sharing.dart';
 
 /// Run with two existing files passed via `-a path1 -a path2`.
-String assetDir() =>
-    [Directory.systemTemp.path, 'share_test_assets'].join(Platform.pathSeparator);
+String assetDir() {
+  if (Platform.isWindows) {
+    return [
+      Directory.systemTemp.path,
+      'share_test_assets',
+    ].join(Platform.pathSeparator);
+  }
+  return '/tmp/share_test_assets';
+}
 
-String normalizePath(String value) =>
-    File(value).absolute.path.replaceAll('/', r'\').toLowerCase();
+String normalizePath(String value) {
+  final absolute = File(value).absolute.path;
+  if (Platform.isWindows) {
+    return absolute.replaceAll('/', r'\').toLowerCase();
+  }
+  try {
+    return File(absolute).resolveSymbolicLinksSync().toLowerCase();
+  } catch (_) {
+    return absolute.replaceAll('\\', '/').toLowerCase();
+  }
+}
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();

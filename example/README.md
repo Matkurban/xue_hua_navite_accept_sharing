@@ -73,3 +73,55 @@ flutter drive -d linux \
 Native Linux parser unit tests are built with the example and live at
 `build/linux/x64/debug/plugins/xue_hua_navite_accept_sharing/xue_hua_navite_accept_sharing_test`.
 
+
+## macOS integration tests (flutter drive)
+
+From this `example/` directory:
+
+```bash
+# Prepare shared file fixtures (real /tmp — sandboxed Directory.systemTemp differs)
+mkdir -p /tmp/share_test_assets
+echo hello > /tmp/share_test_assets/hello.txt
+echo second > /tmp/share_test_assets/second.txt
+
+# Basic UI + API
+flutter drive -d macos \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/plugin_integration_test.dart
+
+# Cold start with shared text (plugin reads ProcessInfo --text)
+flutter drive -d macos \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/cold_start_share_test.dart \
+  -a '--text' -a 'E2E_SHARE_TEXT_MARKER'
+
+# Cold start with a file path (Open With / argv parity)
+flutter drive -d macos \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/cold_start_file_test.dart \
+  -a /tmp/share_test_assets/hello.txt
+
+# Cold start URL classified as url
+flutter drive -d macos \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/cold_start_url_test.dart \
+  -a '--text' -a 'https://example.com/e2e'
+
+# Cold start multiple files
+flutter drive -d macos \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/cold_start_multi_file_test.dart \
+  -a /tmp/share_test_assets/hello.txt -a /tmp/share_test_assets/second.txt
+
+# Warm start (URL-scheme Share Extension handoff + Open With while running)
+flutter drive -d macos \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/warm_start_share_test.dart
+```
+
+Share Extension / Finder Services still need a signed App Group for the
+UserDefaults path; local ad-hoc builds use `/tmp/xue_hua_accept_sharing/payload.json`
+plus `acceptsharing://share?payload=...` (covered by the warm-start suite).
+macOS has no single-instance `--text` forwarder like Linux/Windows; a second
+`open` of the `.app` may start another process unless Launch Services reuses
+the running instance for document/URL opens.
