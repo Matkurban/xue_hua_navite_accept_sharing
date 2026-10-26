@@ -1,4 +1,4 @@
-## Unreleased
+## 1.0.5
 
 * Linux: wire `FlEventChannel` listen/cancel handlers and emit warm-start payloads with `fl_event_channel_send`.
 * Linux: export `xue_hua_navite_accept_sharing_plugin_dispatch_arguments()` for unique-instance `GtkApplication` command-line forwarding.
