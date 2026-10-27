@@ -23,7 +23,7 @@ void main() {
   testWidgets('getInitialSharing clearInitialSharing cleanupTempFiles API', (
     WidgetTester tester,
   ) async {
-    // Do not pump MyApp first 鈥?it consumes and clears the cold-start payload.
+    // Do not pump MyApp first — it consumes and clears the cold-start payload.
     final SharedPayload? payload = await plugin.getInitialSharing();
     // Without share args: null. With --text / file args: non-empty.
     expect(payload == null || payload.isNotEmpty, isTrue);

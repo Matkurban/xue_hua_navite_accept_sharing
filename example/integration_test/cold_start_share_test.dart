@@ -1,14 +1,21 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:xue_hua_navite_accept_sharing/xue_hua_navite_accept_sharing.dart';
 import 'package:xue_hua_navite_accept_sharing_example/main.dart';
 
+/// Desktop argv cold-start only (flutter drive `-a '--text' -a '…'`).
+///
 /// Run with:
 ///   flutter drive -d windows|linux|macos \
 ///     --driver=test_driver/integration_test.dart \
 ///     --target=integration_test/cold_start_share_test.dart \
 ///     -a '--text' -a 'E2E_SHARE_TEXT_MARKER'
+///
+/// Skipped on iOS/Android: mobile has no ProcessInfo argv injection; iOS
+/// payloads are covered by ios_api_smoke_test (+ real Share Extension / openURL).
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -20,8 +27,11 @@ void main() {
     (WidgetTester tester) async {
       // 1) Native cold-start payload must be present before MyApp consumes it.
       final SharedPayload? payload = await plugin.getInitialSharing();
-      expect(payload, isNotNull,
-          reason: 'Expected cold-start payload from --text');
+      expect(
+        payload,
+        isNotNull,
+        reason: 'Expected cold-start payload from --text',
+      );
       expect(payload!.isNotEmpty, isTrue);
       expect(payload.text, marker);
       expect(payload.items, isNotEmpty);
@@ -53,5 +63,7 @@ void main() {
       expect(await plugin.getInitialSharing(), isNull);
       await plugin.cleanupTempFiles();
     },
+    // Desktop ProcessInfo argv only; iOS uses App Group / openURL (see ios_api_smoke).
+    skip: !(Platform.isWindows || Platform.isLinux || Platform.isMacOS),
   );
 }
