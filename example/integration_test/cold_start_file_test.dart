@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:xue_hua_navite_accept_sharing/xue_hua_navite_accept_sharing.dart';
 
+/// Desktop argv cold-start file share (flutter drive `-a /path/to/file`).
+///
 /// Shared test asset used by cold-start file drive runs.
 ///
 /// Create it before driving, then pass the same absolute path with `-a`:
@@ -19,6 +21,9 @@ import 'package:xue_hua_navite_accept_sharing/xue_hua_navite_accept_sharing.dart
 /// On sandboxed macOS, [Directory.systemTemp] is the container tmp, so drive
 /// assets always live under the real `/tmp/share_test_assets` (allowed by the
 /// example's temporary-exception entitlement).
+///
+/// Skipped on iOS/Android: mobile has no ProcessInfo argv file injection; iOS
+/// file payloads are covered by ios_api_smoke_test (+ real Share / openURL).
 String coldStartShareFilePath() {
   if (Platform.isWindows) {
     return [
@@ -49,26 +54,29 @@ void main() {
   const plugin = XueHuaNaviteAcceptSharing();
   final path = coldStartShareFilePath();
 
-  testWidgets('cold start getInitialSharing returns shared file path', (
-    WidgetTester tester,
-  ) async {
-    expect(File(path).existsSync(), isTrue,
-        reason: 'Test asset must exist before drive: $path');
+  testWidgets(
+    'cold start getInitialSharing returns shared file path',
+    (WidgetTester tester) async {
+      expect(
+        File(path).existsSync(),
+        isTrue,
+        reason: 'Test asset must exist before drive: $path',
+      );
 
-    final SharedPayload? payload = await plugin.getInitialSharing();
-    expect(payload, isNotNull);
-    expect(payload!.files, isNotEmpty);
-    final fileItem = payload.files.first;
-    expect(fileItem.fileName, 'hello.txt');
-    expect(fileItem.isFile, isTrue);
-    expect(File(fileItem.content).existsSync(), isTrue);
-    expect(
-      normalizePath(fileItem.content),
-      normalizePath(path),
-    );
+      final SharedPayload? payload = await plugin.getInitialSharing();
+      expect(payload, isNotNull);
+      expect(payload!.files, isNotEmpty);
+      final fileItem = payload.files.first;
+      expect(fileItem.fileName, 'hello.txt');
+      expect(fileItem.isFile, isTrue);
+      expect(File(fileItem.content).existsSync(), isTrue);
+      expect(normalizePath(fileItem.content), normalizePath(path));
 
-    await plugin.clearInitialSharing();
-    expect(await plugin.getInitialSharing(), isNull);
-    await plugin.cleanupTempFiles();
-  });
+      await plugin.clearInitialSharing();
+      expect(await plugin.getInitialSharing(), isNull);
+      await plugin.cleanupTempFiles();
+    },
+    // Desktop ProcessInfo argv only; iOS uses App Group / openURL (see ios_api_smoke).
+    skip: !(Platform.isWindows || Platform.isLinux || Platform.isMacOS),
+  );
 }
