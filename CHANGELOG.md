@@ -1,3 +1,8 @@
+## 1.0.9
+
+* Example: skip desktop ProcessInfo-argv cold_start_* integration tests on iOS/Android; add ios_api_smoke_test and shared_models_integration_test for Simulator coverage.
+* Example: fix mojibake comment in plugin_integration_test; set example pubspec version for Flutter tooling.
+
 ## 1.0.8
 
 * Android: wait for cold-start intent extraction before `getInitialSharing` returns (avoids racing file copies).
